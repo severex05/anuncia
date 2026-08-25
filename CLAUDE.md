@@ -6,7 +6,7 @@ SaaS de lançamento de imóveis para corretores autônomos e pequenas imobiliár
 
 - **Frontend** (`app/`): Vanilla JS + Vite → Vercel
 - **Backend** (`server/`): Express.js → Railway
-- **Dados**: Supabase (Postgres + Auth) — schema em `db/supabase_setup.sql`
+- **Dados**: Supabase (Postgres + Auth) — projeto `anuncia` (id `vwainyqdrlcywgkqedlw`, região sa-east-1), schema em `db/supabase_setup.sql`, já aplicado
 - **IA**: Claude (Anthropic SDK) para geração do pacote de lançamento
 - **Pagamento**: a decidir no Sprint 6 (Stripe é o padrão da empresa; Asaas é alternativa se PIX/boleto virar bloqueio real de conversão — não decidir sem necessidade). O backend deve manter a geração de conteúdo e o billing desacoplados desde o início.
 
@@ -32,4 +32,4 @@ cd server && npm install && npm run dev
 
 ## Estado atual
 
-Sprint 0 em andamento — ver `BACKLOG.md`. Repositório ainda não tem conta Supabase/GitHub/Vercel/Railway configurada; isso é o próximo passo depois do esqueleto local.
+Sprint 0 concluído — ver `BACKLOG.md`. Supabase criado e schema aplicado (`app/.env` e `server/.env` já têm URL real; falta colar a `SUPABASE_SERVICE_ROLE_KEY` em `server/.env`, pegar em https://supabase.com/dashboard/project/vwainyqdrlcywgkqedlw/settings/api). GitHub/Vercel/Railway ainda não configurados — faltou credencial (gh CLI não instalado, token antigo expirado).

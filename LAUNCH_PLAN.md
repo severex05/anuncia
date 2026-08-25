@@ -1,4 +1,4 @@
-# Listing Launch OS — Plano de lançamento e crescimento
+# Anuncia — Plano de lançamento e crescimento
 
 ## 1. Oferta inicial
 

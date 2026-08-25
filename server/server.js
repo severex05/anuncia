@@ -37,5 +37,5 @@ app.get("/api/health", (_, res) => res.json({ status: "ok", uptime: process.upti
 
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
-  console.log(`Listing Launch OS backend rodando na porta ${PORT}`);
+  console.log(`Anuncia backend rodando na porta ${PORT}`);
 });

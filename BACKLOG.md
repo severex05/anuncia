@@ -1,4 +1,4 @@
-# Listing Launch OS — Backlog priorizado
+# Anuncia — Backlog priorizado
 
 ## Legenda
 

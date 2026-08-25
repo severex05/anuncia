@@ -3,7 +3,7 @@
 -- e substitua DEMO_USER_ID pelo UUID real antes de rodar).
 
 -- Perfil de corretor de exemplo
-INSERT INTO llos_professional_profiles (
+INSERT INTO anuncia_professional_profiles (
   id, nome_publico, creci, estado, cidade, imobiliaria,
   contatos, redes_sociais, tom_de_voz,
   palavras_preferidas, palavras_proibidas, plan, onboarding_completo
@@ -24,7 +24,7 @@ INSERT INTO llos_professional_profiles (
 ) ON CONFLICT (id) DO NOTHING;
 
 -- Imóvel de exemplo
-INSERT INTO llos_properties (
+INSERT INTO anuncia_properties (
   id, user_id, titulo_interno, tipo, finalidade, operacao, preco, condominio, iptu,
   cidade, bairro, area_total, area_privativa, dormitorios, suites, banheiros, vagas,
   andar, mobiliado, caracteristicas, diferenciais, estado_conservacao,

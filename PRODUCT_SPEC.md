@@ -1,4 +1,4 @@
-# Listing Launch OS
+# Anuncia
 
 ## Documento de especificação do produto
 
@@ -10,7 +10,7 @@
 
 ## 1. Visão do produto
 
-O Listing Launch OS é um SaaS que permite ao corretor cadastrar os dados de um imóvel uma única vez e gerar um pacote completo de lançamento comercial, revisável e pronto para publicação.
+O Anuncia é um SaaS que permite ao corretor cadastrar os dados de um imóvel uma única vez e gerar um pacote completo de lançamento comercial, revisável e pronto para publicação.
 
 O produto não será apresentado como um "gerador de textos com IA". A categoria comercial será **sistema de lançamento de imóveis**. O benefício central é reduzir o tempo entre receber as informações do imóvel e publicar uma comunicação consistente em Instagram, WhatsApp, portais, e-mail e outros canais.
 

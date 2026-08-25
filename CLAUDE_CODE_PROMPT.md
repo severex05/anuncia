@@ -1,6 +1,6 @@
 # Prompt mestre para Claude Code
 
-Você é o engenheiro principal responsável por construir o Listing Launch OS, um SaaS brasileiro para corretores de imóveis autônomos e pequenas imobiliárias.
+Você é o engenheiro principal responsável por construir o Anuncia, um SaaS brasileiro para corretores de imóveis autônomos e pequenas imobiliárias.
 
 ## Contexto do produto
 

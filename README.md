@@ -1,4 +1,4 @@
-# Listing Launch OS — Pacote para iniciar no Claude Code
+# Anuncia — Pacote para iniciar no Claude Code
 
 Este diretório contém a especificação do produto e os materiais necessários para começar o desenvolvimento do SaaS brasileiro de lançamento de imóveis.
 
@@ -15,7 +15,7 @@ Use `LAUNCH_PLAN.md` para validar a oferta, entrevistar corretores, vender pilot
 ## Estrutura sugerida do repositório do produto
 
 ```text
-listing-launch-os/
+anuncia/
 ├── README.md
 ├── PRODUCT_SPEC.md
 ├── CLAUDE_CODE_PROMPT.md

@@ -1,4 +1,4 @@
-# Listing Launch OS
+# Anuncia
 
 SaaS de lançamento de imóveis para corretores autônomos e pequenas imobiliárias brasileiras. Ver `PRODUCT_SPEC.md` (produto), `CLAUDE_CODE_PROMPT.md` (regras técnicas e modelo de dados), `BACKLOG.md` (sprints) e `LAUNCH_PLAN.md` (go-to-market) antes de implementar qualquer coisa.
 
@@ -18,7 +18,7 @@ Todas as regras detalhadas (segurança, contrato JSON da IA, testes obrigatório
 
 Auth: Supabase Auth puro (padrão IRYON — `requireAuth` via `supabase.auth.getUser(token)`, sem JWT próprio). Ver `server/server.js`.
 
-Tabelas prefixadas `llos_` no Supabase, para não colidir com outros projetos que compartilham o mesmo projeto Supabase se aplicável.
+Tabelas prefixadas `anuncia_` no Supabase, para não colidir com outros projetos que compartilham o mesmo projeto Supabase se aplicável.
 
 ## Comandos
 

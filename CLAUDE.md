@@ -32,4 +32,11 @@ cd server && npm install && npm run dev
 
 ## Estado atual
 
-Sprint 0 concluído — ver `BACKLOG.md`. Supabase criado e schema aplicado (`app/.env` e `server/.env` já têm URL real; falta colar a `SUPABASE_SERVICE_ROLE_KEY` em `server/.env`, pegar em https://supabase.com/dashboard/project/vwainyqdrlcywgkqedlw/settings/api). GitHub/Vercel/Railway ainda não configurados — faltou credencial (gh CLI não instalado, token antigo expirado).
+**Sprint 0 e Sprint 1 concluídos** — ver `BACKLOG.md`.
+
+Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI). Vercel: bloqueado por permissão do GitHub App (ver histórico da sessão 2026-08-25 — precisa liberar "anuncia" em github.com/settings/installations). Railway: ainda não conectado (MCP requer OAuth interativo).
+
+Sprint 1 testado de ponta a ponta com usuário real (signup → GET/PUT `/api/profile` → upload de logo → `DELETE /api/account`, incluindo confirmação de que o token para de funcionar depois da exclusão): tudo passou.
+
+**Pendências conhecidas, não bloqueantes:**
+- Upload de logo não limpa o Storage quando a conta é excluída (cascade só cobre tabelas do Postgres, não objetos do bucket) — órfão pequeno, resolver quando o volume justificar.

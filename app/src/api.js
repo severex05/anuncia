@@ -30,3 +30,20 @@ export const uploadLogo = (logoBase64, mimeType) =>
   });
 
 export const deleteAccount = () => authedFetch("/api/account", { method: "DELETE" });
+
+export const listProperties = (params = {}) => {
+  const qs = new URLSearchParams(Object.fromEntries(Object.entries(params).filter(([, v]) => v))).toString();
+  return authedFetch(`/api/properties${qs ? `?${qs}` : ""}`);
+};
+
+export const getProperty = (id) => authedFetch(`/api/properties/${id}`);
+
+export const createProperty = (fields) =>
+  authedFetch("/api/properties", { method: "POST", body: JSON.stringify(fields) });
+
+export const updateProperty = (id, fields) =>
+  authedFetch(`/api/properties/${id}`, { method: "PUT", body: JSON.stringify(fields) });
+
+export const duplicateProperty = (id) => authedFetch(`/api/properties/${id}/duplicate`, { method: "POST" });
+
+export const deleteProperty = (id) => authedFetch(`/api/properties/${id}`, { method: "DELETE" });

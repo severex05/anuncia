@@ -238,3 +238,172 @@ button {
   font-size: 0.8rem;
   text-decoration: underline;
 }
+
+/* Formulário em etapas (Sprint 2) */
+
+.step-indicator {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 22px;
+  flex-wrap: wrap;
+}
+
+.step-indicator span {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--text-muted);
+  border: 1px solid var(--border);
+}
+
+.step-indicator .step-active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
+.step-indicator .step-done {
+  background: var(--accent-light);
+  color: var(--primary);
+  border-color: var(--accent);
+}
+
+.checkbox-label {
+  flex-direction: row !important;
+  align-items: center;
+  gap: 8px !important;
+}
+
+.checkbox-label input {
+  width: auto;
+}
+
+select {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--text);
+  width: 100%;
+}
+
+.review-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 0.9rem;
+}
+
+.review-list li:first-child {
+  font-size: 1.1rem;
+  color: var(--primary);
+}
+
+/* Dashboard / lista de imóveis (Sprint 2) */
+
+.dashboard {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  width: 100%;
+}
+
+.dashboard-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.dashboard-header .auth-title {
+  margin: 0;
+}
+
+.dashboard-toolbar {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+
+.dashboard-toolbar #search-input {
+  flex: 1;
+}
+
+.dashboard-toolbar select {
+  width: auto;
+  min-width: 160px;
+}
+
+.dashboard-toolbar #new-property-btn {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 16px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.properties-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.property-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.property-card h3 {
+  margin: 6px 0 2px;
+  font-size: 1rem;
+  color: var(--text);
+}
+
+.property-price {
+  font-weight: 700;
+  color: var(--primary);
+  margin: 4px 0 0;
+}
+
+.property-status {
+  display: inline-block;
+  align-self: flex-start;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.property-status.status-aprovado { background: #e5f3e5; color: var(--warning-low); }
+.property-status.status-arquivado { background: #f0efec; color: var(--text-muted); }
+.property-status.status-gerado,
+.property-status.status-revisando { background: #fdf1e0; color: var(--warning-medium); }
+
+.property-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.property-card-actions button {
+  font-size: 0.75rem;
+  padding: 6px 10px;
+}

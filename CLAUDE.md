@@ -32,11 +32,13 @@ cd server && npm install && npm run dev
 
 ## Estado atual
 
-**Sprint 0 e Sprint 1 concluídos** — ver `BACKLOG.md`.
+**Sprint 0, 1 e 2 concluídos** — ver `BACKLOG.md`.
 
 Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI). Vercel: bloqueado por permissão do GitHub App (ver histórico da sessão 2026-08-25 — precisa liberar "anuncia" em github.com/settings/installations). Railway: ainda não conectado (MCP requer OAuth interativo).
 
 Sprint 1 testado de ponta a ponta com usuário real (signup → GET/PUT `/api/profile` → upload de logo → `DELETE /api/account`, incluindo confirmação de que o token para de funcionar depois da exclusão): tudo passou.
+
+Sprint 2 (CRUD de imóvel) também testado de ponta a ponta: criar, validação de consistência (área privativa > total rejeitada, suítes > dormitórios rejeitada, título obrigatório), buscar/filtrar, editar, duplicar, excluir, e **isolamento de dados entre usuários confirmado com um terceiro usuário real** (outro usuário não vê nem consegue excluir imóvel alheio — 404, não 403, pra não vazar que o registro existe).
 
 **Pendências conhecidas, não bloqueantes:**
 - Upload de logo não limpa o Storage quando a conta é excluída (cascade só cobre tabelas do Postgres, não objetos do bucket) — órfão pequeno, resolver quando o volume justificar.

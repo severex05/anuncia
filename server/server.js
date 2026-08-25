@@ -116,6 +116,144 @@ app.post("/api/profile/logo", requireAuth, async (req, res) => {
   res.json({ logo_url: logoUrl });
 });
 
+// ── Sprint 2: imóvel ─────────────────────────────────────────────────────────
+
+const PROPERTY_FIELDS = [
+  "titulo_interno", "tipo", "finalidade", "operacao", "preco", "condominio", "iptu",
+  "cidade", "bairro", "endereco_publico", "area_total", "area_privativa",
+  "dormitorios", "suites", "banheiros", "vagas", "andar", "mobiliado",
+  "caracteristicas", "diferenciais", "estado_conservacao", "descricao_entorno",
+  "regras", "observacoes",
+];
+const PROPERTY_STATUS = ["rascunho", "gerado", "revisando", "aprovado", "arquivado"];
+
+// Validação de consistência (P0 do Sprint 2) — preço/área/quartos e campos
+// obrigatórios sem conflito. Roda tanto em create quanto em update.
+function validateProperty(body, { partial } = { partial: false }) {
+  const errors = [];
+  const has = (f) => body[f] !== undefined && body[f] !== null;
+
+  if (!partial && (!body.titulo_interno || !String(body.titulo_interno).trim())) {
+    errors.push("titulo_interno é obrigatório");
+  }
+
+  for (const f of ["preco", "condominio", "iptu", "area_total", "area_privativa"]) {
+    if (has(f) && (typeof body[f] !== "number" || body[f] < 0)) {
+      errors.push(`${f} precisa ser um número >= 0`);
+    }
+  }
+  for (const f of ["dormitorios", "suites", "banheiros", "vagas"]) {
+    if (has(f) && (!Number.isInteger(body[f]) || body[f] < 0)) {
+      errors.push(`${f} precisa ser um número inteiro >= 0`);
+    }
+  }
+  if (has("area_total") && has("area_privativa") && body.area_privativa > body.area_total) {
+    errors.push("area_privativa não pode ser maior que area_total");
+  }
+  if (has("dormitorios") && has("suites") && body.suites > body.dormitorios) {
+    errors.push("suites não pode ser maior que dormitorios");
+  }
+  if (has("status") && !PROPERTY_STATUS.includes(body.status)) {
+    errors.push(`status precisa ser um de: ${PROPERTY_STATUS.join(", ")}`);
+  }
+  return errors;
+}
+
+app.get("/api/properties", requireAuth, async (req, res) => {
+  let query = supabase
+    .from("anuncia_properties")
+    .select("*")
+    .eq("user_id", req.userId)
+    .order("updated_at", { ascending: false });
+
+  const { q, status } = req.query;
+  if (status) query = query.eq("status", status);
+  if (q) {
+    const term = `%${q}%`;
+    query = query.or(`titulo_interno.ilike.${term},cidade.ilike.${term},bairro.ilike.${term}`);
+  }
+
+  const { data, error } = await query;
+  if (error) return res.status(500).json({ error: "Erro ao listar imóveis" });
+  res.json(data);
+});
+
+app.get("/api/properties/:id", requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from("anuncia_properties")
+    .select("*")
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: "Erro ao buscar imóvel" });
+  if (!data) return res.status(404).json({ error: "Imóvel não encontrado" });
+  res.json(data);
+});
+
+app.post("/api/properties", requireAuth, async (req, res) => {
+  const errors = validateProperty(req.body, { partial: false });
+  if (errors.length) return res.status(400).json({ error: errors.join("; ") });
+
+  const insert = { user_id: req.userId, status: "rascunho" };
+  for (const f of PROPERTY_FIELDS) if (req.body[f] !== undefined) insert[f] = req.body[f];
+
+  const { data, error } = await supabase.from("anuncia_properties").insert(insert).select().single();
+  if (error) {
+    console.error("[properties/create]", error.message);
+    return res.status(500).json({ error: "Erro ao criar imóvel" });
+  }
+  res.status(201).json(data);
+});
+
+app.put("/api/properties/:id", requireAuth, async (req, res) => {
+  const errors = validateProperty(req.body, { partial: true });
+  if (errors.length) return res.status(400).json({ error: errors.join("; ") });
+
+  const updates = { updated_at: new Date().toISOString() };
+  for (const f of PROPERTY_FIELDS) if (req.body[f] !== undefined) updates[f] = req.body[f];
+  if (req.body.status !== undefined) updates.status = req.body.status;
+
+  const { data, error } = await supabase
+    .from("anuncia_properties")
+    .update(updates)
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId)
+    .select()
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: "Erro ao atualizar imóvel" });
+  if (!data) return res.status(404).json({ error: "Imóvel não encontrado" });
+  res.json(data);
+});
+
+app.post("/api/properties/:id/duplicate", requireAuth, async (req, res) => {
+  const { data: original, error: fetchError } = await supabase
+    .from("anuncia_properties")
+    .select("*")
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId)
+    .maybeSingle();
+  if (fetchError) return res.status(500).json({ error: "Erro ao buscar imóvel" });
+  if (!original) return res.status(404).json({ error: "Imóvel não encontrado" });
+
+  const { id, created_at, updated_at, ...rest } = original;
+  const copy = { ...rest, titulo_interno: `${original.titulo_interno} (cópia)`, status: "rascunho" };
+
+  const { data, error } = await supabase.from("anuncia_properties").insert(copy).select().single();
+  if (error) return res.status(500).json({ error: "Erro ao duplicar imóvel" });
+  res.status(201).json(data);
+});
+
+app.delete("/api/properties/:id", requireAuth, async (req, res) => {
+  const { error, count } = await supabase
+    .from("anuncia_properties")
+    .delete({ count: "exact" })
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId);
+  if (error) return res.status(500).json({ error: "Erro ao excluir imóvel" });
+  if (!count) return res.status(404).json({ error: "Imóvel não encontrado" });
+  res.json({ sucesso: true });
+});
+
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────
 // Cascateia automaticamente pra profile/properties/etc via ON DELETE CASCADE
 // (ver db/supabase_setup.sql) — não precisa apagar tabela por tabela aqui.

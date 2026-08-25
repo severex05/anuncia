@@ -1,0 +1,296 @@
+import { createProperty, updateProperty } from "./api.js";
+
+const STEPS = ["Básicas", "Ambientes", "Localização", "Diferenciais", "Revisão"];
+
+const TIPOS = ["apartamento", "casa", "terreno", "comercial", "rural"];
+const FINALIDADES = ["residencial", "comercial", "misto"];
+const OPERACOES = ["venda", "aluguel"];
+
+function toNum(v) {
+  if (v === "" || v === undefined || v === null) return undefined;
+  const n = Number(v);
+  return Number.isNaN(n) ? undefined : n;
+}
+function toInt(v) {
+  if (v === "" || v === undefined || v === null) return undefined;
+  const n = parseInt(v, 10);
+  return Number.isNaN(n) ? undefined : n;
+}
+function toList(v) {
+  return String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+export function renderPropertyFormScreen(existing, onDone, onCancel) {
+  const app = document.querySelector("#app");
+  const isEdit = !!existing;
+
+  const state = {
+    step: 0,
+    saving: false,
+    error: "",
+    f: {
+      titulo_interno: existing?.titulo_interno || "",
+      tipo: existing?.tipo || "",
+      finalidade: existing?.finalidade || "",
+      operacao: existing?.operacao || "",
+      preco: existing?.preco ?? "",
+      condominio: existing?.condominio ?? "",
+      iptu: existing?.iptu ?? "",
+      area_total: existing?.area_total ?? "",
+      area_privativa: existing?.area_privativa ?? "",
+      dormitorios: existing?.dormitorios ?? "",
+      suites: existing?.suites ?? "",
+      banheiros: existing?.banheiros ?? "",
+      vagas: existing?.vagas ?? "",
+      andar: existing?.andar || "",
+      mobiliado: existing?.mobiliado ?? false,
+      cidade: existing?.cidade || "",
+      bairro: existing?.bairro || "",
+      endereco_publico: existing?.endereco_publico || "",
+      caracteristicas: (existing?.caracteristicas || []).join(", "),
+      diferenciais: (existing?.diferenciais || []).join(", "),
+      estado_conservacao: existing?.estado_conservacao || "",
+      descricao_entorno: existing?.descricao_entorno || "",
+      regras: existing?.regras || "",
+      observacoes: existing?.observacoes || "",
+    },
+  };
+
+  function buildPayload() {
+    const f = state.f;
+    return {
+      titulo_interno: f.titulo_interno.trim(),
+      tipo: f.tipo,
+      finalidade: f.finalidade,
+      operacao: f.operacao,
+      preco: toNum(f.preco),
+      condominio: toNum(f.condominio),
+      iptu: toNum(f.iptu),
+      area_total: toNum(f.area_total),
+      area_privativa: toNum(f.area_privativa),
+      dormitorios: toInt(f.dormitorios),
+      suites: toInt(f.suites),
+      banheiros: toInt(f.banheiros),
+      vagas: toInt(f.vagas),
+      andar: f.andar,
+      mobiliado: !!f.mobiliado,
+      cidade: f.cidade.trim(),
+      bairro: f.bairro.trim(),
+      endereco_publico: f.endereco_publico.trim(),
+      caracteristicas: toList(f.caracteristicas),
+      diferenciais: toList(f.diferenciais),
+      estado_conservacao: f.estado_conservacao,
+      descricao_entorno: f.descricao_entorno.trim(),
+      regras: f.regras.trim(),
+      observacoes: f.observacoes.trim(),
+    };
+  }
+
+  async function save({ asDraftOnly } = {}) {
+    state.saving = true;
+    state.error = "";
+    render();
+    try {
+      const payload = buildPayload();
+      if (isEdit) await updateProperty(existing.id, payload);
+      else await createProperty(payload);
+      onDone();
+    } catch (err) {
+      state.error = err.message;
+      state.saving = false;
+      render();
+    }
+  }
+
+  function stepFieldsHtml() {
+    const f = state.f;
+    switch (state.step) {
+      case 0:
+        return `
+          <label>Título interno (só pra você identificar)
+            <input type="text" data-f="titulo_interno" value="${f.titulo_interno}" placeholder="Apto Vila Madalena 2Q reformado" required />
+          </label>
+          <div class="profile-row">
+            <label>Tipo
+              <select data-f="tipo">
+                <option value="">Selecione</option>
+                ${TIPOS.map((t) => `<option value="${t}" ${f.tipo === t ? "selected" : ""}>${t}</option>`).join("")}
+              </select>
+            </label>
+            <label>Finalidade
+              <select data-f="finalidade">
+                <option value="">Selecione</option>
+                ${FINALIDADES.map((t) => `<option value="${t}" ${f.finalidade === t ? "selected" : ""}>${t}</option>`).join("")}
+              </select>
+            </label>
+          </div>
+          <div class="profile-row">
+            <label>Operação
+              <select data-f="operacao">
+                <option value="">Selecione</option>
+                ${OPERACOES.map((t) => `<option value="${t}" ${f.operacao === t ? "selected" : ""}>${t}</option>`).join("")}
+              </select>
+            </label>
+            <label>Preço (R$)
+              <input type="number" min="0" data-f="preco" value="${f.preco}" />
+            </label>
+          </div>
+          <div class="profile-row">
+            <label>Condomínio (R$)
+              <input type="number" min="0" data-f="condominio" value="${f.condominio}" />
+            </label>
+            <label>IPTU (R$)
+              <input type="number" min="0" data-f="iptu" value="${f.iptu}" />
+            </label>
+          </div>
+        `;
+      case 1:
+        return `
+          <div class="profile-row">
+            <label>Área total (m²)
+              <input type="number" min="0" data-f="area_total" value="${f.area_total}" />
+            </label>
+            <label>Área privativa (m²)
+              <input type="number" min="0" data-f="area_privativa" value="${f.area_privativa}" />
+            </label>
+          </div>
+          <div class="profile-row">
+            <label>Dormitórios
+              <input type="number" min="0" step="1" data-f="dormitorios" value="${f.dormitorios}" />
+            </label>
+            <label>Suítes
+              <input type="number" min="0" step="1" data-f="suites" value="${f.suites}" />
+            </label>
+          </div>
+          <div class="profile-row">
+            <label>Banheiros
+              <input type="number" min="0" step="1" data-f="banheiros" value="${f.banheiros}" />
+            </label>
+            <label>Vagas
+              <input type="number" min="0" step="1" data-f="vagas" value="${f.vagas}" />
+            </label>
+          </div>
+          <div class="profile-row">
+            <label>Andar
+              <input type="text" data-f="andar" value="${f.andar}" placeholder="5º andar" />
+            </label>
+            <label class="checkbox-label">
+              <input type="checkbox" data-f="mobiliado" ${f.mobiliado ? "checked" : ""} /> Mobiliado
+            </label>
+          </div>
+        `;
+      case 2:
+        return `
+          <div class="profile-row">
+            <label>Cidade
+              <input type="text" data-f="cidade" value="${f.cidade}" />
+            </label>
+            <label>Bairro
+              <input type="text" data-f="bairro" value="${f.bairro}" />
+            </label>
+          </div>
+          <label>Endereço público (opcional, aparece no anúncio)
+            <input type="text" data-f="endereco_publico" value="${f.endereco_publico}" />
+          </label>
+        `;
+      case 3:
+        return `
+          <label>Características (separe por vírgula)
+            <input type="text" data-f="caracteristicas" value="${f.caracteristicas}" placeholder="varanda, academia no prédio, portaria 24h" />
+          </label>
+          <label>Diferenciais (separe por vírgula)
+            <input type="text" data-f="diferenciais" value="${f.diferenciais}" placeholder="reformado em 2025, vista livre" />
+          </label>
+          <label>Estado de conservação
+            <input type="text" data-f="estado_conservacao" value="${f.estado_conservacao}" placeholder="reformado, novo, usado" />
+          </label>
+          <label>Descrição do entorno
+            <textarea data-f="descricao_entorno" rows="2">${f.descricao_entorno}</textarea>
+          </label>
+          <label>Regras do imóvel
+            <input type="text" data-f="regras" value="${f.regras}" />
+          </label>
+          <label>Observações
+            <textarea data-f="observacoes" rows="2">${f.observacoes}</textarea>
+          </label>
+        `;
+      case 4: {
+        const p = buildPayload();
+        return `
+          <p class="auth-subtitle">Confira antes de salvar — dá pra editar depois.</p>
+          <ul class="review-list">
+            <li><strong>${p.titulo_interno || "(sem título)"}</strong></li>
+            <li>${p.tipo || "—"} · ${p.finalidade || "—"} · ${p.operacao || "—"}</li>
+            <li>R$ ${p.preco ?? "—"} ${p.condominio ? `+ cond. R$ ${p.condominio}` : ""}</li>
+            <li>${p.area_privativa ?? "—"}m² · ${p.dormitorios ?? "—"} dorm · ${p.suites ?? "—"} suítes · ${p.vagas ?? "—"} vagas</li>
+            <li>${p.bairro || "—"}, ${p.cidade || "—"}</li>
+          </ul>
+        `;
+      }
+      default:
+        return "";
+    }
+  }
+
+  function render() {
+    const canGoNext = state.step < STEPS.length - 1;
+    const canGoBack = state.step > 0;
+
+    app.innerHTML = `
+      <div class="profile-screen">
+        <div class="profile-card">
+          <h1 class="auth-title">${isEdit ? "Editar imóvel" : "Novo imóvel"}</h1>
+          <div class="step-indicator">
+            ${STEPS.map((s, i) => `<span class="${i === state.step ? "step-active" : i < state.step ? "step-done" : ""}">${s}</span>`).join("")}
+          </div>
+
+          <form id="property-form" class="profile-form">${stepFieldsHtml()}</form>
+
+          ${state.error ? `<p class="auth-error">${state.error}</p>` : ""}
+
+          <div class="profile-actions">
+            <button type="button" id="cancel-btn" class="btn-secondary">Cancelar</button>
+            ${canGoBack ? `<button type="button" id="back-btn" class="btn-secondary">Voltar</button>` : ""}
+            <button type="button" id="draft-btn" class="btn-secondary" ${state.saving ? "disabled" : ""}>Salvar rascunho</button>
+            ${canGoNext
+              ? `<button type="button" id="next-btn">Próximo</button>`
+              : `<button type="button" id="submit-btn" ${state.saving ? "disabled" : ""}>${state.saving ? "Salvando..." : isEdit ? "Salvar" : "Criar imóvel"}</button>`}
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.querySelectorAll("[data-f]").forEach((el) => {
+      const field = el.dataset.f;
+      const evt = el.type === "checkbox" ? "change" : "input";
+      el.addEventListener(evt, () => {
+        state.f[field] = el.type === "checkbox" ? el.checked : el.value;
+      });
+    });
+
+    document.querySelector("#cancel-btn").addEventListener("click", onCancel);
+    if (canGoBack) {
+      document.querySelector("#back-btn").addEventListener("click", () => {
+        state.step -= 1;
+        render();
+      });
+    }
+    document.querySelector("#draft-btn").addEventListener("click", () => save({ asDraftOnly: true }));
+    if (canGoNext) {
+      document.querySelector("#next-btn").addEventListener("click", () => {
+        if (state.step === 0 && !state.f.titulo_interno.trim()) {
+          state.error = "Título interno é obrigatório.";
+          render();
+          return;
+        }
+        state.error = "";
+        state.step += 1;
+        render();
+      });
+    } else {
+      document.querySelector("#submit-btn").addEventListener("click", () => save({}));
+    }
+  }
+
+  render();
+}

@@ -1,0 +1,76 @@
+import { supabase } from "./supabaseClient.js";
+
+let mode = "login"; // "login" | "signup"
+
+function translateAuthError(message) {
+  const m = message.toLowerCase();
+  if (m.includes("already") || m.includes("registered")) return "E-mail já cadastrado. Tente entrar.";
+  if (m.includes("invalid")) return "E-mail ou senha incorretos.";
+  if (m.includes("confirm")) return "Confirme seu e-mail antes de entrar.";
+  if (m.includes("password") && m.includes("6")) return "Senha precisa ter pelo menos 6 caracteres.";
+  return "Algo deu errado. Tente de novo.";
+}
+
+export function renderAuthScreen(onAuthenticated) {
+  const app = document.querySelector("#app");
+  app.innerHTML = `
+    <div class="auth-screen">
+      <div class="auth-card">
+        <h1 class="auth-title">Anuncia</h1>
+        <p class="auth-subtitle">Cadastre o imóvel uma vez. Gere todo o material de divulgação.</p>
+
+        <form id="auth-form" class="auth-form">
+          <input type="email" id="auth-email" placeholder="E-mail" required autocomplete="email" />
+          <input type="password" id="auth-password" placeholder="Senha" required autocomplete="current-password" minlength="6" />
+          <p id="auth-error" class="auth-error" hidden></p>
+          <button type="submit" id="auth-submit">${mode === "login" ? "Entrar" : "Criar conta"}</button>
+        </form>
+
+        <p class="auth-toggle">
+          ${mode === "login" ? "Ainda não tem conta?" : "Já tem conta?"}
+          <button type="button" id="auth-toggle-btn">${mode === "login" ? "Criar conta" : "Entrar"}</button>
+        </p>
+      </div>
+    </div>
+  `;
+
+  document.querySelector("#auth-toggle-btn").addEventListener("click", () => {
+    mode = mode === "login" ? "signup" : "login";
+    renderAuthScreen(onAuthenticated);
+  });
+
+  const form = document.querySelector("#auth-form");
+  const errorEl = document.querySelector("#auth-error");
+  const submitBtn = document.querySelector("#auth-submit");
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    errorEl.hidden = true;
+    submitBtn.disabled = true;
+    submitBtn.textContent = "Aguarde...";
+
+    const email = document.querySelector("#auth-email").value.trim();
+    const password = document.querySelector("#auth-password").value;
+
+    const { error } =
+      mode === "signup"
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      errorEl.textContent = translateAuthError(error.message);
+      errorEl.hidden = false;
+      submitBtn.disabled = false;
+      submitBtn.textContent = mode === "login" ? "Entrar" : "Criar conta";
+      return;
+    }
+
+    if (mode === "signup") {
+      errorEl.textContent = "Conta criada! Verifique seu e-mail se pedirmos confirmação, ou já pode continuar.";
+      errorEl.hidden = false;
+      errorEl.classList.add("auth-info");
+    }
+
+    onAuthenticated();
+  });
+}

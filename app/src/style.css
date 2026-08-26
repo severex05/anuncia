@@ -654,6 +654,17 @@ button {
   font-weight: 600;
 }
 
+/* .btn-danger-link é "block + margin auto" pro contexto de link solitário
+   (excluir conta) — dentro da fileira de ações do card ele precisa se
+   comportar como os outros botões, senão quebra pra linha própria e
+   flutua centralizado. */
+.property-card-actions .btn-danger-link {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding: 7px 12px;
+}
+
 .property-card-actions button[data-action="package"] {
   background: var(--gold);
   color: var(--ink);

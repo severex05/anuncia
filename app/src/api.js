@@ -14,7 +14,17 @@ async function authedFetch(path, options = {}) {
     },
   });
   const data = await res.json().catch(() => null);
-  if (!res.ok) throw new Error(data?.error || "Erro na requisição");
+  if (!res.ok) {
+    // Sessão local aponta pra um token que o backend não reconhece mais
+    // (ex: conta apagada em outro lugar) — sai limpo em vez de travar o
+    // usuário numa tela de erro cru.
+    if (res.status === 401 && token) {
+      await supabase.auth.signOut();
+      window.location.reload();
+      return new Promise(() => {}); // nunca resolve — o reload já está a caminho
+    }
+    throw new Error(data?.error || "Erro na requisição");
+  }
   return data;
 }
 

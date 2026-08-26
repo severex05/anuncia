@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
+const { generateLaunchPackage, GenerationError, ASSET_TYPES } = require("./ai");
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
@@ -252,6 +253,185 @@ app.delete("/api/properties/:id", requireAuth, async (req, res) => {
   if (error) return res.status(500).json({ error: "Erro ao excluir imóvel" });
   if (!count) return res.status(404).json({ error: "Imóvel não encontrado" });
   res.json({ sucesso: true });
+});
+
+// ── Sprint 3: geração do pacote de lançamento ───────────────────────────────
+// Idempotência: o cliente envia idempotency_key (gerado 1x por clique de
+// "Gerar"). Duplo clique / retry de rede reenviando a mesma chave nunca
+// dispara uma segunda chamada de IA nem um segundo usage_event.
+
+async function fetchOwnedProperty(propertyId, userId) {
+  const { data } = await supabase
+    .from("anuncia_properties")
+    .select("*")
+    .eq("id", propertyId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return data;
+}
+
+app.post("/api/properties/:id/generate", requireAuth, async (req, res) => {
+  const { idempotency_key, asset_types, instruction } = req.body || {};
+  if (!idempotency_key || typeof idempotency_key !== "string") {
+    return res.status(400).json({ error: "idempotency_key é obrigatório" });
+  }
+
+  const assetTypes = asset_types && asset_types.length ? asset_types : ASSET_TYPES;
+  const invalidTypes = assetTypes.filter((t) => !ASSET_TYPES.includes(t));
+  if (invalidTypes.length) {
+    return res.status(400).json({ error: `tipos de ativo inválidos: ${invalidTypes.join(", ")}` });
+  }
+
+  const property = await fetchOwnedProperty(req.params.id, req.userId);
+  if (!property) return res.status(404).json({ error: "Imóvel não encontrado" });
+
+  const { data: profile } = await supabase
+    .from("anuncia_professional_profiles")
+    .select("*")
+    .eq("id", req.userId)
+    .maybeSingle();
+
+  // Replay idempotente: mesma chave já usada.
+  const { data: existing } = await supabase
+    .from("anuncia_launch_packages")
+    .select("*")
+    .eq("idempotency_key", idempotency_key)
+    .maybeSingle();
+
+  if (existing && existing.property_id !== property.id) {
+    return res.status(409).json({ error: "idempotency_key já usada em outro imóvel" });
+  }
+  if (existing?.status === "concluido") {
+    const pkg = await fetchPackageWithAssets(existing.id);
+    return res.json({ ...pkg, replay: true });
+  }
+  if (existing?.status === "gerando") {
+    return res.status(409).json({ error: "Geração já em andamento para esta chave, aguarde", retryable: true });
+  }
+
+  let packageRow = existing; // status 'erro' → reaproveita a linha pra retry
+  if (packageRow) {
+    await supabase.from("anuncia_launch_packages").update({ status: "gerando" }).eq("id", packageRow.id);
+  } else {
+    const { count } = await supabase
+      .from("anuncia_launch_packages")
+      .select("id", { count: "exact", head: true })
+      .eq("property_id", property.id);
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("anuncia_launch_packages")
+      .insert({ property_id: property.id, idempotency_key, status: "gerando", versao: (count || 0) + 1 })
+      .select()
+      .maybeSingle();
+
+    if (insertError) {
+      // corrida: outra requisição com a mesma chave inseriu primeiro
+      if (insertError.code === "23505") {
+        return res.status(409).json({ error: "Geração já em andamento para esta chave, aguarde", retryable: true });
+      }
+      console.error("[generate/insert-package]", insertError.message);
+      return res.status(500).json({ error: "Erro ao iniciar geração" });
+    }
+    packageRow = inserted;
+  }
+
+  try {
+    const { result, modelo_usado } = await generateLaunchPackage({ profile, property, assetTypes, instruction });
+
+    // Path de retry após erro: garante que não sobra lixo de uma tentativa anterior.
+    await supabase.from("anuncia_content_assets").delete().eq("package_id", packageRow.id);
+
+    const assetsToInsert = result.assets.map((a) => ({
+      package_id: packageRow.id,
+      tipo: a.type,
+      titulo: a.title || "",
+      conteudo: a.content,
+      status: "gerado",
+      origem_campos: a.source_fields || [],
+    }));
+    const { data: insertedAssets, error: assetsError } = await supabase
+      .from("anuncia_content_assets")
+      .insert(assetsToInsert)
+      .select();
+    if (assetsError) throw new Error(`falha ao salvar ativos: ${assetsError.message}`);
+
+    const alertRows = [];
+    for (const w of result.global_warnings || []) {
+      alertRows.push({
+        package_id: packageRow.id,
+        categoria: w.category,
+        severidade: w.severity,
+        explicacao: w.message,
+        sugestao: w.suggestion || "",
+      });
+    }
+    for (const a of result.assets) {
+      const savedAsset = insertedAssets.find((sa) => sa.tipo === a.type);
+      for (const warn of a.warnings || []) {
+        alertRows.push({
+          package_id: packageRow.id,
+          asset_id: savedAsset?.id,
+          categoria: "other",
+          severidade: "low",
+          explicacao: warn,
+        });
+      }
+    }
+    if (alertRows.length) {
+      const { error: alertsError } = await supabase.from("anuncia_compliance_alerts").insert(alertRows);
+      if (alertsError) console.error("[generate/alerts]", alertsError.message);
+    }
+
+    await supabase
+      .from("anuncia_launch_packages")
+      .update({ status: "concluido", modelo_usado })
+      .eq("id", packageRow.id);
+
+    if (property.status === "rascunho") {
+      await supabase.from("anuncia_properties").update({ status: "gerado", updated_at: new Date().toISOString() }).eq("id", property.id);
+    }
+
+    await supabase.from("anuncia_usage_events").insert({
+      user_id: req.userId,
+      tipo_evento: "geracao",
+      metadata: { property_id: property.id, package_id: packageRow.id, modelo: modelo_usado, asset_types: assetTypes },
+    });
+
+    const pkg = await fetchPackageWithAssets(packageRow.id);
+    res.status(201).json(pkg);
+  } catch (err) {
+    console.error("[generate]", err.message);
+    await supabase.from("anuncia_launch_packages").update({ status: "erro" }).eq("id", packageRow.id);
+    const retryable = err instanceof GenerationError ? err.retryable : true;
+    res.status(502).json({ error: "Falha ao gerar pacote. O imóvel não foi alterado — pode tentar novamente.", retryable });
+  }
+});
+
+async function fetchPackageWithAssets(packageId) {
+  const { data: pkg } = await supabase.from("anuncia_launch_packages").select("*").eq("id", packageId).maybeSingle();
+  const { data: assets } = await supabase.from("anuncia_content_assets").select("*").eq("package_id", packageId).order("tipo");
+  const { data: alerts } = await supabase.from("anuncia_compliance_alerts").select("*").eq("package_id", packageId);
+  return { ...pkg, assets: assets || [], global_warnings: alerts || [] };
+}
+
+app.get("/api/properties/:id/packages", requireAuth, async (req, res) => {
+  const property = await fetchOwnedProperty(req.params.id, req.userId);
+  if (!property) return res.status(404).json({ error: "Imóvel não encontrado" });
+
+  const { data, error } = await supabase
+    .from("anuncia_launch_packages")
+    .select("*")
+    .eq("property_id", property.id)
+    .order("versao", { ascending: false });
+  if (error) return res.status(500).json({ error: "Erro ao listar pacotes" });
+  res.json(data);
+});
+
+app.get("/api/packages/:id", requireAuth, async (req, res) => {
+  const { data: pkg } = await supabase.from("anuncia_launch_packages").select("*, anuncia_properties!inner(user_id)").eq("id", req.params.id).maybeSingle();
+  if (!pkg || pkg.anuncia_properties.user_id !== req.userId) return res.status(404).json({ error: "Pacote não encontrado" });
+  const full = await fetchPackageWithAssets(pkg.id);
+  res.json(full);
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS anuncia_launch_packages (
 ALTER TABLE anuncia_launch_packages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role tem acesso total (packages)" ON anuncia_launch_packages
   USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_anuncia_launch_packages_property ON anuncia_launch_packages(property_id);
 
 -- Cada ativo individual do pacote (descrição, instagram, whatsapp, etc.)
 CREATE TABLE IF NOT EXISTS anuncia_content_assets (
@@ -124,10 +125,14 @@ CREATE POLICY "Service role tem acesso total (assets)" ON anuncia_content_assets
   USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_anuncia_content_assets_package ON anuncia_content_assets(package_id);
 
--- Alertas de revisão/conformidade por ativo
+-- Alertas de revisão/conformidade — podem ser por ativo específico (asset_id)
+-- ou no nível do pacote inteiro (package_id), pois o contrato de geração da
+-- IA distingue "warnings" por ativo de "global_warnings" do pacote (ver
+-- server/ai.js). Pelo menos um dos dois precisa estar preenchido.
 CREATE TABLE IF NOT EXISTS anuncia_compliance_alerts (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  asset_id UUID NOT NULL REFERENCES anuncia_content_assets(id) ON DELETE CASCADE,
+  asset_id UUID REFERENCES anuncia_content_assets(id) ON DELETE CASCADE,
+  package_id UUID REFERENCES anuncia_launch_packages(id) ON DELETE CASCADE,
   categoria TEXT NOT NULL CHECK (categoria IN (
     'missing_fact', 'unsupported_claim', 'sensitive_language', 'consistency', 'other'
   )),
@@ -136,11 +141,13 @@ CREATE TABLE IF NOT EXISTS anuncia_compliance_alerts (
   explicacao TEXT DEFAULT '',
   sugestao TEXT DEFAULT '',
   estado TEXT DEFAULT 'pendente' CHECK (estado IN ('pendente', 'aceito', 'ignorado', 'editado')),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  CONSTRAINT compliance_alerts_scope_chk CHECK (asset_id IS NOT NULL OR package_id IS NOT NULL)
 );
 ALTER TABLE anuncia_compliance_alerts ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role tem acesso total (alerts)" ON anuncia_compliance_alerts
   USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_anuncia_compliance_alerts_package ON anuncia_compliance_alerts(package_id);
 
 -- Eventos de uso (analytics de produto + contador de consumo por plano)
 CREATE TABLE IF NOT EXISTS anuncia_usage_events (

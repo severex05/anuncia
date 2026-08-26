@@ -1,29 +1,40 @@
-/* Identidade visual provisória (Sprint 0) — profissional e confiável,
-   evitando estética "IA futurista". Ferramenta de trabalho, não vitrine. */
+/* Identidade visual definitiva (redesign 2026-08-26) — evolução do
+   marinho+dourado provisório do Sprint 0, agora editorial e confiante:
+   fotografia/textura full-bleed em vez de espaço vazio, serifada itálica
+   pra títulos/destaque, dourado usado com moderação cirúrgica (1 CTA por
+   tela). Sincronizado com o Claude Design "Anuncia Design System"
+   (projectId ba034bb9-255b-4887-9942-2ff1555a936b) — não editar tokens
+   aqui sem atualizar lá também. */
 
 :root {
-  /* Cor primária: azul-marinho profundo (confiança, profissionalismo imobiliário) */
-  --primary: #12233d;
-  --primary-light: #1e3a5f;
+  --ink: #0c1729;
+  --ink-light: #1c3454;
+  --ink-soft: #2c4568;
 
-  /* Acento: dourado suave (padrão do mercado imobiliário premium sem ser exagerado) */
-  --accent: #c9974a;
-  --accent-light: #ddb877;
+  --gold: #c9974a;
+  --gold-light: #e8c07f;
+  --gold-deep: #8a6529;
 
-  /* Neutros */
-  --bg: #f7f6f3;
+  --paper: #f6f1e7;
+  --paper-deep: #efe7d6;
   --surface: #ffffff;
-  --border: #e2e0da;
-  --text: #1a1a1a;
-  --text-muted: #6b6b6b;
+  --surface-paper: #fbf8f2;
+  --border: #e4dccb;
+  --border-strong: #d8cbaf;
 
-  /* Semântico (alertas de revisão) */
-  --warning-low: #4a7a4a;
-  --warning-medium: #c98a2c;
-  --warning-high: #b3412c;
+  --ink-text: #1a1a1a;
+  --muted: #6b6355;
 
+  --success: #4a7a4a;
+  --warn: #b9791f;
+  --danger: #a8402c;
+
+  --font-display: "Instrument Serif", Georgia, serif;
   --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  --radius: 8px;
+
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 22px;
 }
 
 * {
@@ -33,8 +44,8 @@
 body {
   margin: 0;
   font-family: var(--font-sans);
-  background: var(--bg);
-  color: var(--text);
+  background: var(--paper);
+  color: var(--ink-text);
   -webkit-font-smoothing: antialiased;
 }
 
@@ -42,6 +53,12 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+}
+
+.serif {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
 }
 
 .placeholder {
@@ -52,18 +69,138 @@ body {
 }
 
 .placeholder h1 {
-  font-size: 1.75rem;
-  color: var(--primary);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2rem;
+  color: var(--ink);
   margin-bottom: 8px;
 }
 
 .placeholder p {
-  color: var(--text-muted);
+  color: var(--muted);
   line-height: 1.6;
   margin-bottom: 20px;
 }
 
-/* Auth + Perfil (Sprint 1) */
+/* ── Topbar (Dashboard, Editor de pacote, Formulário de imóvel) ─────────── */
+
+.topbar {
+  background: var(--ink);
+  color: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+}
+
+.topbar .wordmark {
+  font-size: 1.4rem;
+  color: var(--gold-light);
+  text-decoration: none;
+}
+
+.topbar button {
+  font-family: var(--font-sans);
+  background: none;
+  border: 1px solid rgba(246, 241, 231, 0.3);
+  color: var(--paper);
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.topbar button:hover {
+  border-color: var(--gold-light);
+  color: var(--gold-light);
+}
+
+/* ── Split editorial (Auth, Onboarding de perfil) ────────────────────────── */
+
+.split-screen {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  min-height: 100vh;
+}
+
+.split-hero {
+  background: linear-gradient(165deg, var(--ink) 0%, #16283f 55%, var(--ink) 100%);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px;
+}
+
+.split-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(115deg, rgba(232, 192, 127, 0.05) 0px, rgba(232, 192, 127, 0.05) 1px, transparent 1px, transparent 64px);
+}
+
+.split-hero .wordmark {
+  position: relative;
+  font-size: 1.6rem;
+  color: var(--gold-light);
+}
+
+.split-hero .claim {
+  position: relative;
+}
+
+.split-hero .claim h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 2.6rem;
+  line-height: 1.15;
+  color: var(--paper);
+  margin: 0 0 16px;
+}
+
+.split-hero .claim h1 em {
+  font-style: italic;
+  color: var(--gold-light);
+}
+
+.split-hero .claim p {
+  font-family: var(--font-sans);
+  color: rgba(246, 241, 231, 0.65);
+  font-size: 0.95rem;
+  max-width: 380px;
+  line-height: 1.6;
+}
+
+.split-hero .proof {
+  position: relative;
+  font-family: var(--font-sans);
+  color: rgba(246, 241, 231, 0.5);
+  font-size: 0.78rem;
+  letter-spacing: 0.04em;
+}
+
+.split-form {
+  background: var(--paper);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 32px;
+  overflow-y: auto;
+}
+
+@media (max-width: 760px) {
+  .split-screen {
+    grid-template-columns: 1fr;
+  }
+  .split-hero {
+    min-height: 260px;
+  }
+}
+
+/* Auth + Onboarding — cartão de formulário dentro do split */
 
 .auth-screen,
 .profile-screen {
@@ -77,28 +214,26 @@ body {
 .auth-card,
 .profile-card {
   width: 100%;
-  max-width: 440px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 32px;
-  box-shadow: 0 1px 3px rgba(18, 35, 61, 0.06);
+  max-width: 400px;
 }
 
 .profile-card {
-  max-width: 560px;
+  max-width: 460px;
 }
 
 .auth-title {
-  font-size: 1.5rem;
-  color: var(--primary);
-  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.9rem;
+  color: var(--ink);
+  margin: 0 0 6px;
 }
 
 .auth-subtitle {
-  color: var(--text-muted);
-  font-size: 0.9rem;
-  margin: 0 0 24px;
+  color: var(--muted);
+  font-size: 0.88rem;
+  margin: 0 0 28px;
   line-height: 1.5;
 }
 
@@ -106,42 +241,59 @@ body {
 .profile-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 20px;
 }
 
 .profile-form label {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  font-size: 0.85rem;
-  color: var(--text-muted);
+  font-size: 0.76rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
   font-weight: 500;
 }
 
 .profile-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 14px;
+  gap: 20px;
 }
 
 input[type="text"],
 input[type="email"],
 input[type="password"],
-textarea {
+input[type="number"],
+textarea,
+select {
   font-family: var(--font-sans);
-  font-size: 0.95rem;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
+  font-size: 0.98rem;
+  padding: 9px 2px;
+  border: none;
+  border-bottom: 1.5px solid var(--border-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink-text);
   width: 100%;
 }
 
+textarea {
+  resize: vertical;
+}
+
 input:focus,
-textarea:focus {
+textarea:focus,
+select:focus {
   outline: none;
-  border-color: var(--accent);
+  border-color: var(--gold-deep);
+}
+
+select {
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+  background: var(--surface);
 }
 
 button {
@@ -150,28 +302,43 @@ button {
 }
 
 #auth-submit,
-#profile-submit {
-  background: var(--primary);
-  color: #fff;
+#profile-submit,
+#next-btn,
+#submit-btn {
+  background: var(--ink);
+  color: var(--paper);
   border: none;
-  border-radius: 6px;
-  padding: 12px;
+  border-radius: var(--radius-sm);
+  padding: 13px 20px;
   font-size: 0.95rem;
-  font-weight: 600;
+  font-weight: 700;
+}
+
+#auth-submit:hover,
+#profile-submit:hover,
+#next-btn:hover,
+#submit-btn:hover {
+  background: var(--ink-light);
 }
 
 #auth-submit:disabled,
-#profile-submit:disabled {
-  opacity: 0.6;
+#profile-submit:disabled,
+#submit-btn:disabled {
+  opacity: 0.5;
 }
 
 .btn-secondary {
-  background: var(--bg);
-  color: var(--primary);
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
   padding: 12px;
-  font-size: 0.9rem;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.btn-secondary:hover {
+  border-color: var(--ink);
 }
 
 .profile-actions {
@@ -183,29 +350,48 @@ button {
   flex: 1;
 }
 
+#generate-btn {
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 14px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  width: 100%;
+}
+
+#generate-btn:hover {
+  background: var(--gold-light);
+}
+
+#generate-btn:disabled {
+  opacity: 0.6;
+}
+
 .auth-toggle {
   text-align: center;
-  margin-top: 18px;
+  margin-top: 22px;
   font-size: 0.85rem;
-  color: var(--text-muted);
+  color: var(--muted);
 }
 
 .auth-toggle button {
   background: none;
   border: none;
-  color: var(--accent);
-  font-weight: 600;
+  color: var(--gold-deep);
+  font-weight: 700;
   padding: 0 0 0 4px;
 }
 
 .auth-error {
-  color: var(--warning-high);
+  color: var(--danger);
   font-size: 0.85rem;
   margin: 0;
 }
 
 .auth-error.auth-info {
-  color: var(--warning-low);
+  color: var(--success);
 }
 
 .profile-logo-row {
@@ -224,49 +410,79 @@ button {
 
 .profile-logo-upload {
   font-size: 0.85rem;
-  color: var(--accent);
+  color: var(--gold-deep);
   cursor: pointer;
   font-weight: 600;
 }
 
 .btn-danger-link {
   display: block;
-  margin: 20px auto 0;
+  margin: 24px auto 0;
   background: none;
   border: none;
-  color: var(--warning-high);
+  color: var(--danger);
   font-size: 0.8rem;
   text-decoration: underline;
 }
 
-/* Formulário em etapas (Sprint 2) */
+/* ── Stepper editorial (formulário de imóvel) ────────────────────────────── */
 
 .step-indicator {
   display: flex;
-  gap: 6px;
-  margin-bottom: 22px;
-  flex-wrap: wrap;
+  align-items: center;
+  margin-bottom: 36px;
 }
 
-.step-indicator span {
-  font-size: 0.75rem;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: var(--bg);
-  color: var(--text-muted);
-  border: 1px solid var(--border);
+.step-indicator .step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
-.step-indicator .step-active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+.step-indicator .num {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 0.95rem;
+  border: 1.5px solid var(--border-strong);
+  color: var(--muted);
+  flex-shrink: 0;
 }
 
-.step-indicator .step-done {
-  background: var(--accent-light);
-  color: var(--primary);
-  border-color: var(--accent);
+.step-indicator .step-active .num {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--gold-light);
+}
+
+.step-indicator .step-done .num {
+  background: var(--gold);
+  border-color: var(--gold);
+  color: var(--ink);
+}
+
+.step-indicator .step-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.step-indicator .step-active .step-label {
+  color: var(--ink);
+  font-weight: 600;
+}
+
+.step-indicator .connector {
+  flex: 1;
+  height: 1px;
+  background: var(--border-strong);
+  margin: 0 10px;
+  min-width: 12px;
 }
 
 .checkbox-label {
@@ -279,46 +495,39 @@ button {
   width: auto;
 }
 
-select {
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  padding: 10px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--surface);
-  color: var(--text);
-  width: 100%;
-}
-
 .review-list {
   list-style: none;
   padding: 0;
   margin: 0 0 8px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   font-size: 0.9rem;
 }
 
 .review-list li:first-child {
-  font-size: 1.1rem;
-  color: var(--primary);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.3rem;
+  color: var(--ink);
 }
 
-/* Dashboard / lista de imóveis (Sprint 2) */
+/* ── Dashboard / lista de imóveis ─────────────────────────────────────────── */
 
 .dashboard {
-  max-width: 960px;
+  max-width: 1080px;
   margin: 0 auto;
-  padding: 32px 24px;
+  padding: 40px 32px 64px;
   width: 100%;
 }
 
 .dashboard-header {
   display: flex;
-  align-items: center;
+  align-items: baseline;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 28px;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
 .dashboard-header .auth-title {
@@ -327,8 +536,9 @@ select {
 
 .dashboard-toolbar {
   display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
+  gap: 12px;
+  margin-bottom: 32px;
+  align-items: center;
 }
 
 .dashboard-toolbar #search-input {
@@ -341,74 +551,120 @@ select {
 }
 
 .dashboard-toolbar #new-property-btn {
-  background: var(--primary);
-  color: #fff;
+  background: var(--gold);
+  color: var(--ink);
   border: none;
-  border-radius: 6px;
-  padding: 10px 16px;
-  font-size: 0.9rem;
-  font-weight: 600;
+  border-radius: var(--radius-sm);
+  padding: 11px 18px;
+  font-size: 0.88rem;
+  font-weight: 700;
   white-space: nowrap;
+}
+
+.dashboard-toolbar #new-property-btn:hover {
+  background: var(--gold-light);
 }
 
 .properties-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 20px;
 }
 
 .property-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(12, 23, 41, 0.06);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+}
+
+.property-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(12, 23, 41, 0.12);
+}
+
+.property-card-photo {
+  height: 140px;
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 14px;
+  background:
+    linear-gradient(160deg, rgba(12, 23, 41, 0.6), rgba(12, 23, 41, 0.15) 65%),
+    repeating-linear-gradient(100deg, #2c4568 0px, #2c4568 2px, #0c1729 2px, #0c1729 90px);
+}
+
+.property-card-main {
+  padding: 18px;
+  flex: 1;
 }
 
 .property-card h3 {
-  margin: 6px 0 2px;
-  font-size: 1rem;
-  color: var(--text);
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.2rem;
+  margin: 0 0 3px;
+  color: var(--ink);
 }
 
 .property-price {
   font-weight: 700;
-  color: var(--primary);
+  font-size: 1.02rem;
+  color: var(--ink);
   margin: 4px 0 0;
 }
 
 .property-status {
   display: inline-block;
   align-self: flex-start;
-  font-size: 0.7rem;
-  font-weight: 600;
+  font-size: 0.68rem;
+  font-weight: 700;
   text-transform: uppercase;
-  padding: 3px 8px;
-  border-radius: 4px;
-  background: var(--bg);
-  color: var(--text-muted);
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid var(--muted);
+  color: var(--muted);
 }
 
-.property-status.status-aprovado { background: #e5f3e5; color: var(--warning-low); }
-.property-status.status-arquivado { background: #f0efec; color: var(--text-muted); }
+.property-status.status-aprovado { border-color: var(--success); color: var(--success); }
+.property-status.status-arquivado { border-color: var(--muted); color: var(--muted); }
 .property-status.status-gerado,
-.property-status.status-revisando { background: #fdf1e0; color: var(--warning-medium); }
+.property-status.status-revisando { border-color: var(--gold-deep); color: var(--gold-deep); }
 
 .property-card-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 0 18px 18px;
   margin-top: auto;
 }
 
 .property-card-actions button {
-  font-size: 0.75rem;
-  padding: 6px 10px;
+  font-size: 0.76rem;
+  padding: 7px 12px;
+  border-radius: var(--radius-sm);
+  font-weight: 600;
 }
 
-/* Editor de pacote (Sprint 4) */
+.property-card-actions button[data-action="package"] {
+  background: var(--gold);
+  color: var(--ink);
+  border: 1px solid var(--gold);
+}
+
+.property-card-actions button[data-action="package"]:hover {
+  background: var(--gold-light);
+}
+
+/* ── Editor de pacote (manuscrito) ───────────────────────────────────────── */
 
 .package-editor {
   max-width: 880px;
@@ -421,18 +677,26 @@ select {
 
 .warnings-panel,
 .checklist-panel {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 16px 18px;
+  background: var(--paper-deep);
+  border-left: 3px solid var(--gold-deep);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 16px 20px;
   margin-bottom: 20px;
 }
 
+.checklist-panel {
+  background: var(--surface);
+  border-left-color: var(--border-strong);
+}
+
 .warnings-title {
-  font-weight: 600;
-  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--gold-deep);
+  font-weight: 700;
   margin: 0 0 10px;
-  font-size: 0.9rem;
 }
 
 .warnings-list {
@@ -446,78 +710,106 @@ select {
 
 .warning-item {
   font-size: 0.85rem;
-  padding: 8px 10px;
-  border-left: 3px solid var(--warning-low);
-  background: var(--bg);
-  border-radius: 4px;
+  color: var(--ink-text);
+  line-height: 1.5;
 }
-
-.warning-item.severity-medium { border-left-color: var(--warning-medium); }
-.warning-item.severity-high { border-left-color: var(--warning-high); }
 
 .warning-excerpt {
   font-style: italic;
-  color: var(--text-muted);
+  color: var(--muted);
   margin-top: 4px;
 }
 
 .warning-suggestion {
-  color: var(--text-muted);
+  color: var(--muted);
   margin-top: 4px;
 }
 
 .asset-tabs {
   display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-bottom: 16px;
+  gap: 22px;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
 }
 
 .asset-tab {
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 999px;
-  padding: 6px 14px;
-  font-size: 0.8rem;
-  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--muted);
+  background: none;
+  border: none;
+  padding: 12px 2px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
 }
 
 .asset-tab-active {
-  background: var(--primary);
-  color: #fff;
-  border-color: var(--primary);
+  color: var(--ink);
+  border-bottom-color: var(--gold);
 }
 
 .editor-pane {
-  background: var(--surface);
+  background: var(--surface-paper);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
-  padding: 18px;
+  border-top: none;
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  padding: 32px 36px;
   margin-bottom: 20px;
 }
 
 .editor-pane textarea {
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
-  padding: 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  font-family: var(--font-display);
+  font-size: 1.25rem;
+  line-height: 1.6;
+  padding: 0;
+  border: none;
   width: 100%;
   resize: vertical;
-  line-height: 1.5;
+  background: transparent;
+  min-height: 180px;
+}
+
+.editor-pane textarea:focus {
+  outline: none;
 }
 
 .editor-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-top: 12px;
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+.editor-actions #copy-btn {
+  background: var(--gold);
+  color: var(--ink);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.editor-actions #copy-btn:hover {
+  background: var(--gold-light);
+}
+
+.editor-actions button:not(#copy-btn) {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 10px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--ink);
 }
 
 .regen-panel {
   margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--border);
 }
 
 .quick-instructions {
@@ -527,6 +819,17 @@ select {
   margin-bottom: 10px;
 }
 
+.quick-instructions button {
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  padding: 7px 14px;
+  cursor: pointer;
+  color: var(--ink);
+}
+
 .regen-custom {
   display: flex;
   gap: 8px;
@@ -534,29 +837,44 @@ select {
 
 .regen-custom input {
   flex: 1;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 9px 12px;
+}
+
+.regen-custom button {
+  background: var(--ink);
+  color: var(--paper);
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: 9px 16px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .history-list {
   list-style: none;
   padding: 0;
-  margin: 16px 0 0;
+  margin: 20px 0 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
 .history-item {
-  background: var(--bg);
+  background: var(--paper);
   border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
 }
 
 .history-meta {
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-family: var(--font-sans);
+  font-size: 0.72rem;
+  color: var(--muted);
   text-transform: capitalize;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
 .history-content {
@@ -564,15 +882,36 @@ select {
   margin-bottom: 8px;
 }
 
-.checklist-panel .checklist-list {
-  gap: 8px;
+.history-item button {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 7px 12px;
+  font-size: 0.78rem;
+  font-weight: 600;
 }
 
-/* Página pública de compartilhamento (Sprint 5) */
+.checklist-panel .checklist-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* Formulário de geração (lista de checkbox de tipos de ativo) */
+.checklist-list.gen-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+/* ── Página pública de compartilhamento ──────────────────────────────────── */
 
 .share-asset {
-  margin-bottom: 20px;
-  padding-bottom: 20px;
+  margin-bottom: 24px;
+  padding-bottom: 24px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -583,19 +922,20 @@ select {
 }
 
 .share-asset h3 {
-  margin: 0 0 8px;
-  color: var(--primary);
-  font-size: 0.95rem;
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 1.1rem;
 }
 
 .share-content {
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: var(--font-sans);
-  font-size: 0.9rem;
-  line-height: 1.5;
-  background: var(--bg);
-  border-radius: 6px;
-  padding: 12px;
-  margin: 0 0 8px;
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  line-height: 1.6;
+  margin: 0 0 10px;
+  color: var(--ink-text);
 }

@@ -26,7 +26,17 @@ export async function renderProfileScreen(onSaved) {
   const redes = profile.redes_sociais || {};
 
   app.innerHTML = `
-    <div class="profile-screen">
+    <div class="split-screen">
+      <div class="split-hero">
+        <span class="wordmark serif">Anuncia</span>
+        <div class="claim">
+          <h1>A <em>sua</em> voz, em todo lançamento.</h1>
+          <p>Nome, CRECI, tom de voz e palavras que você prefere — usados em cada texto gerado, sem você precisar escrever prompt nenhum.</p>
+        </div>
+        <div></div>
+      </div>
+      <div class="split-form">
+      <div class="profile-screen">
       <div class="profile-card">
         <h1 class="auth-title">Complete seu perfil</h1>
         <p class="auth-subtitle">Usado pra gerar conteúdo com a sua voz — pode ajustar depois.</p>
@@ -92,6 +102,8 @@ export async function renderProfileScreen(onSaved) {
         </form>
 
         <button type="button" id="profile-delete-account" class="btn-danger-link">Excluir minha conta</button>
+      </div>
+      </div>
       </div>
     </div>
   `;

@@ -14,22 +14,34 @@ function translateAuthError(message) {
 export function renderAuthScreen(onAuthenticated) {
   const app = document.querySelector("#app");
   app.innerHTML = `
-    <div class="auth-screen">
-      <div class="auth-card">
-        <h1 class="auth-title">Anuncia</h1>
-        <p class="auth-subtitle">Cadastre o imóvel uma vez. Gere todo o material de divulgação.</p>
+    <div class="split-screen">
+      <div class="split-hero">
+        <span class="wordmark serif">Anuncia</span>
+        <div class="claim">
+          <h1>Cadastre uma vez.<br/>Divulgue em <em>todo lugar</em>.</h1>
+          <p>Descrição, Instagram, WhatsApp, e-mail e roteiro de Reel — gerados a partir dos dados reais do seu imóvel, na sua voz.</p>
+        </div>
+        <div class="proof">USADO POR CORRETORES AUTÔNOMOS EM TODO O BRASIL</div>
+      </div>
+      <div class="split-form">
+        <div class="auth-screen">
+          <div class="auth-card">
+            <h1 class="auth-title">${mode === "login" ? "Bem-vindo de volta" : "Criar conta"}</h1>
+            <p class="auth-subtitle">${mode === "login" ? "Entre pra continuar seus lançamentos." : "Leva menos de um minuto."}</p>
 
-        <form id="auth-form" class="auth-form">
-          <input type="email" id="auth-email" placeholder="E-mail" required autocomplete="email" />
-          <input type="password" id="auth-password" placeholder="Senha" required autocomplete="current-password" minlength="6" />
-          <p id="auth-error" class="auth-error" hidden></p>
-          <button type="submit" id="auth-submit">${mode === "login" ? "Entrar" : "Criar conta"}</button>
-        </form>
+            <form id="auth-form" class="auth-form">
+              <input type="email" id="auth-email" placeholder="E-mail" required autocomplete="email" />
+              <input type="password" id="auth-password" placeholder="Senha" required autocomplete="current-password" minlength="6" />
+              <p id="auth-error" class="auth-error" hidden></p>
+              <button type="submit" id="auth-submit">${mode === "login" ? "Entrar" : "Criar conta"}</button>
+            </form>
 
-        <p class="auth-toggle">
-          ${mode === "login" ? "Ainda não tem conta?" : "Já tem conta?"}
-          <button type="button" id="auth-toggle-btn">${mode === "login" ? "Criar conta" : "Entrar"}</button>
-        </p>
+            <p class="auth-toggle">
+              ${mode === "login" ? "Ainda não tem conta?" : "Já tem conta?"}
+              <button type="button" id="auth-toggle-btn">${mode === "login" ? "Criar conta" : "Entrar"}</button>
+            </p>
+          </div>
+        </div>
       </div>
     </div>
   `;

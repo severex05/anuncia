@@ -38,6 +38,9 @@ export async function renderShareScreen(token) {
   const price = property.preco ? `R$ ${Number(property.preco).toLocaleString("pt-BR")}` : "";
 
   app.innerHTML = `
+    <header class="topbar">
+      <span class="wordmark serif">Anuncia</span>
+    </header>
     <div class="dashboard package-editor">
       <header class="dashboard-header">
         <div>

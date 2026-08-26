@@ -18,10 +18,15 @@ export async function renderDashboardScreen() {
 async function renderList(filters) {
   const app = document.querySelector("#app");
   app.innerHTML = `
+    <header class="topbar">
+      <span class="wordmark serif">Anuncia</span>
+      <button type="button" id="logout-btn">Sair</button>
+    </header>
     <div class="dashboard">
       <header class="dashboard-header">
-        <h1 class="auth-title">Anuncia</h1>
-        <button type="button" id="logout-btn" class="btn-secondary">Sair</button>
+        <div>
+          <h1 class="auth-title">Seus lançamentos</h1>
+        </div>
       </header>
 
       <div class="dashboard-toolbar">
@@ -72,8 +77,10 @@ async function renderList(filters) {
 function renderCard(p) {
   return `
     <div class="property-card" data-id="${p.id}">
-      <div class="property-card-main">
+      <div class="property-card-photo">
         <span class="property-status status-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
+      </div>
+      <div class="property-card-main">
         <h3>${p.titulo_interno}</h3>
         <p class="auth-subtitle">${[p.tipo, p.bairro, p.cidade].filter(Boolean).join(" · ") || "Sem detalhes ainda"}</p>
         ${p.preco ? `<p class="property-price">R$ ${Number(p.preco).toLocaleString("pt-BR")}</p>` : ""}

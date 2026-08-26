@@ -237,25 +237,32 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
     const canGoBack = state.step > 0;
 
     app.innerHTML = `
-      <div class="profile-screen">
-        <div class="profile-card">
-          <h1 class="auth-title">${isEdit ? "Editar imóvel" : "Novo imóvel"}</h1>
-          <div class="step-indicator">
-            ${STEPS.map((s, i) => `<span class="${i === state.step ? "step-active" : i < state.step ? "step-done" : ""}">${s}</span>`).join("")}
-          </div>
+      <header class="topbar">
+        <span class="wordmark serif">Anuncia</span>
+        <button type="button" id="cancel-btn">Cancelar</button>
+      </header>
+      <div class="dashboard" style="max-width: 640px;">
+        <h1 class="auth-title">${isEdit ? "Editar imóvel" : "Novo imóvel"}</h1>
+        <div class="step-indicator">
+          ${STEPS.map((s, i) => `
+            <div class="step ${i === state.step ? "step-active" : i < state.step ? "step-done" : ""}">
+              <div class="num">${i < state.step ? "✓" : i + 1}</div>
+              <span class="step-label">${s}</span>
+            </div>
+            ${i < STEPS.length - 1 ? '<div class="connector"></div>' : ""}
+          `).join("")}
+        </div>
 
-          <form id="property-form" class="profile-form">${stepFieldsHtml()}</form>
+        <form id="property-form" class="profile-form">${stepFieldsHtml()}</form>
 
-          ${state.error ? `<p class="auth-error">${state.error}</p>` : ""}
+        ${state.error ? `<p class="auth-error">${state.error}</p>` : ""}
 
-          <div class="profile-actions">
-            <button type="button" id="cancel-btn" class="btn-secondary">Cancelar</button>
-            ${canGoBack ? `<button type="button" id="back-btn" class="btn-secondary">Voltar</button>` : ""}
-            <button type="button" id="draft-btn" class="btn-secondary" ${state.saving ? "disabled" : ""}>Salvar rascunho</button>
-            ${canGoNext
-              ? `<button type="button" id="next-btn">Próximo</button>`
-              : `<button type="button" id="submit-btn" ${state.saving ? "disabled" : ""}>${state.saving ? "Salvando..." : isEdit ? "Salvar" : "Criar imóvel"}</button>`}
-          </div>
+        <div class="profile-actions" style="margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); justify-content: flex-end;">
+          ${canGoBack ? `<button type="button" id="back-btn" class="btn-secondary">Voltar</button>` : ""}
+          <button type="button" id="draft-btn" class="btn-secondary" ${state.saving ? "disabled" : ""}>Salvar rascunho</button>
+          ${canGoNext
+            ? `<button type="button" id="next-btn">Próximo</button>`
+            : `<button type="button" id="submit-btn" ${state.saving ? "disabled" : ""}>${state.saving ? "Salvando..." : isEdit ? "Salvar" : "Criar imóvel"}</button>`}
         </div>
       </div>
     `;

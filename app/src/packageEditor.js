@@ -238,12 +238,16 @@ export async function renderPackageEditorScreen(property, onBack) {
 
   function renderGenerateForm() {
     return `
+      <header class="topbar">
+        <span class="wordmark serif">Anuncia</span>
+        <button type="button" id="back-btn">Voltar</button>
+      </header>
       <div class="profile-screen">
         <div class="profile-card">
           <h1 class="auth-title">Gerar pacote de lançamento</h1>
           <p class="auth-subtitle">A IA usa os dados já cadastrados do imóvel e o seu perfil de voz. O resultado é sempre um rascunho — revise antes de publicar.</p>
 
-          <div class="checklist-list">
+          <div class="checklist-list gen-types">
             ${ASSET_ORDER.map((t) => `
               <label class="checkbox-label">
                 <input type="checkbox" data-gen-type="${t}" ${state.genAssetTypes.has(t) ? "checked" : ""} />
@@ -259,7 +263,6 @@ export async function renderPackageEditorScreen(property, onBack) {
           ${state.error ? `<p class="auth-error">${state.error}</p>` : ""}
 
           <div class="profile-actions">
-            <button type="button" id="back-btn" class="btn-secondary">Voltar</button>
             <button type="button" id="generate-btn" ${state.generating ? "disabled" : ""}>
               ${state.generating ? "Gerando... (pode levar até 30s)" : "Gerar pacote"}
             </button>
@@ -349,6 +352,10 @@ export async function renderPackageEditorScreen(property, onBack) {
   function renderEditor() {
     const asset = state.pkg.assets.find((a) => a.tipo === state.activeType);
     return `
+      <header class="topbar">
+        <span class="wordmark serif">Anuncia</span>
+        <button type="button" id="back-btn">Voltar</button>
+      </header>
       <div class="dashboard package-editor">
         <header class="dashboard-header">
           <h1 class="auth-title">${property.titulo_interno}</h1>
@@ -356,7 +363,6 @@ export async function renderPackageEditorScreen(property, onBack) {
             <button type="button" id="export-md-btn" class="btn-secondary" ${state.exporting ? "disabled" : ""}>Exportar .md</button>
             <button type="button" id="export-txt-btn" class="btn-secondary" ${state.exporting ? "disabled" : ""}>Exportar .txt</button>
             <button type="button" id="regenerate-package-btn" class="btn-secondary">Gerar novo pacote</button>
-            <button type="button" id="back-btn" class="btn-secondary">Voltar</button>
           </div>
         </header>
 

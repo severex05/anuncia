@@ -567,3 +567,35 @@ select {
 .checklist-panel .checklist-list {
   gap: 8px;
 }
+
+/* Página pública de compartilhamento (Sprint 5) */
+
+.share-asset {
+  margin-bottom: 20px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.share-asset:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+  padding-bottom: 0;
+}
+
+.share-asset h3 {
+  margin: 0 0 8px;
+  color: var(--primary);
+  font-size: 0.95rem;
+}
+
+.share-content {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  background: var(--bg);
+  border-radius: 6px;
+  padding: 12px;
+  margin: 0 0 8px;
+}

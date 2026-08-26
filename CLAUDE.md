@@ -32,7 +32,7 @@ cd server && npm install && npm run dev
 
 ## Estado atual
 
-**Sprint 0, 1, 2, 3 e 4 concluídos** — ver `BACKLOG.md`.
+**Sprint 0, 1, 2, 3, 4 e 5 (P0) concluídos** — ver `BACKLOG.md`. Sprint 5 P1 (PDF, copiar formatado por canal) não implementado — deliberadamente adiado, não é bloqueante do MVP.
 
 Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI). Vercel: bloqueado por permissão do GitHub App (ver histórico da sessão 2026-08-25 — precisa liberar "anuncia" em github.com/settings/installations). Railway: ainda não conectado (MCP requer OAuth interativo).
 
@@ -44,6 +44,11 @@ Sprint 3 (geração) implementado e testado de ponta a ponta com Claude real (`c
 
 Sprint 4 (editor e revisão) implementado e testado de ponta a ponta **no navegador real** (Playwright, não só via curl): tela de geração (`app/src/packageEditor.js`) com seleção de tipos de ativo + instrução opcional, editor por ativo com abas pros 9 tipos, "Copiar" (clipboard), edição manual salvável (`PUT /api/assets/:id`), regeneração com instrução rápida usando IA real ("Deixe mais curto" testado ao vivo, ~5s), histórico de versões (`GET/POST /api/assets/:id/versions...`) com restaurar testado e confirmado (não duplica, snapshot correto), checklist antes de exportar (`PUT /api/packages/:id/checklist`) com persistência confirmada após reload de página, painel de alertas de revisão mostrando categoria/trecho/sugestão. Status do imóvel muda pra "Gerado" após a 1ª geração (confirmado no dashboard). Contador de consumo estendido pra cobrir `regeneracao`, não só `geracao`.
 
+Sprint 5 (exportação e compartilhamento) implementado e testado de ponta a ponta, incluindo no navegador: `GET /api/packages/:id/export?format=md|txt` (download real testado via Playwright — Content-Disposition com nome de arquivo slugificado sem acentos), `POST/DELETE /api/packages/:id/share` (token de 192 bits via `crypto.randomBytes`, regenerar sempre cria token novo, revogar de fato apaga o token do banco) e `GET /api/public/packages/:token` — rota pública **sem** `requireAuth`, retorna objeto curado (nunca a linha crua da tabela, pra nunca vazar `user_id`/`palavras_proibidas`/etc.), testada com sucesso **sem nenhum header de autenticação** e também no navegador **sem sessão logada** (`app/src/shareView.js`, roteada em `main.js` por `window.location.pathname` antes de qualquer checagem de sessão — funciona porque o Vite dev server já faz fallback de SPA pra `index.html` em qualquer path).
+
+**Bug real encontrado e corrigido no caminho**: nome do arquivo exportado sempre caía no fallback genérico (`anuncia.md`) porque o Express `cors()` não expõe `Content-Disposition` por padrão pro `fetch()` do frontend ler — corrigido com `exposedHeaders: ["Content-Disposition"]`.
+
 **Pendências conhecidas, não bloqueantes:**
 - Upload de logo não limpa o Storage quando a conta é excluída (cascade só cobre tabelas do Postgres, não objetos do bucket) — órfão pequeno, resolver quando o volume justificar.
 - Regeneração de ativo único não persiste os `warnings` retornados como `compliance_alerts` no banco (só aparecem na resposta imediata da regeneração) — os `global_warnings` do pacote inteiro (geração completa) persistem normalmente.
+- Sessão inválida/expirada no navegador (ex: usuário deletado no backend mas token ainda em `localStorage`) mostra uma mensagem de erro crua na tela de perfil em vez de fazer logout automático e voltar pro login — achado durante teste do Sprint 5, não é do Sprint 5, não corrigido ainda (baixa prioridade, não afeta usuário real com sessão válida).

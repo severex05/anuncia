@@ -71,3 +71,38 @@ export const getAssetVersions = (assetId) => authedFetch(`/api/assets/${assetId}
 
 export const restoreAssetVersion = (assetId, versionId) =>
   authedFetch(`/api/assets/${assetId}/versions/${versionId}/restore`, { method: "POST" });
+
+export async function exportPackage(packageId, format) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${BACKEND_URL}/api/packages/${packageId}/export?format=${format}`, {
+    headers: { Authorization: `Bearer ${session?.access_token}` },
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new Error(data?.error || "Erro ao exportar");
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("Content-Disposition") || "";
+  const match = disposition.match(/filename="([^"]+)"/);
+  const filename = match ? match[1] : `anuncia.${format}`;
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export const createShareLink = (packageId) => authedFetch(`/api/packages/${packageId}/share`, { method: "POST" });
+
+export const revokeShareLink = (packageId) => authedFetch(`/api/packages/${packageId}/share`, { method: "DELETE" });
+
+export const getPublicPackage = (token) =>
+  fetch(`${BACKEND_URL}/api/public/packages/${token}`).then(async (res) => {
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || "Link inválido");
+    return data;
+  });

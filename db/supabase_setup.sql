@@ -106,6 +106,11 @@ CREATE INDEX IF NOT EXISTS idx_anuncia_launch_packages_property ON anuncia_launc
 -- checklist_state (Sprint 4): {"0": true, "2": true, ...} — índice da linha do
 -- ativo tipo "checklist" -> marcado ou não, antes de exportar.
 ALTER TABLE anuncia_launch_packages ADD COLUMN IF NOT EXISTS checklist_state JSONB NOT NULL DEFAULT '{}';
+-- Compartilhamento de página privada (Sprint 5): token opaco e imprevisível
+-- (crypto.randomBytes), não sequencial. share_enabled=false revoga o acesso
+-- sem precisar apagar o token (regenerar cria um novo token de qualquer forma).
+ALTER TABLE anuncia_launch_packages ADD COLUMN IF NOT EXISTS share_token TEXT UNIQUE;
+ALTER TABLE anuncia_launch_packages ADD COLUMN IF NOT EXISTS share_enabled BOOLEAN NOT NULL DEFAULT FALSE;
 
 -- Cada ativo individual do pacote (descrição, instagram, whatsapp, etc.)
 CREATE TABLE IF NOT EXISTS anuncia_content_assets (

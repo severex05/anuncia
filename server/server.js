@@ -1,11 +1,15 @@
 require("dotenv").config();
+const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
 const { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES } = require("./ai");
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
+// exposedHeaders: sem isso o fetch() do frontend não consegue ler
+// Content-Disposition (CORS só expõe um conjunto "safe" por padrão) — o
+// nome do arquivo exportado (Sprint 5) cairia sempre no fallback genérico.
+app.use(cors({ origin: process.env.FRONTEND_URL || "*", exposedHeaders: ["Content-Disposition"] }));
 // limit maior que o default (100kb) pra caber logo em base64 (até 2MB de imagem)
 app.use(express.json({ limit: "4mb" }));
 
@@ -589,6 +593,130 @@ app.post("/api/assets/:id/versions/:versionId/restore", requireAuth, async (req,
     .single();
   if (error) return res.status(500).json({ error: "Erro ao restaurar versão" });
   res.json(data);
+});
+
+// ── Sprint 5: exportação e compartilhamento ─────────────────────────────────
+
+const ASSET_LABELS = {
+  long_description: "Descrição longa",
+  short_description: "Descrição curta",
+  instagram: "Instagram",
+  facebook: "Facebook",
+  whatsapp: "WhatsApp",
+  email: "E-mail",
+  reel_script: "Roteiro de Reel",
+  headline: "Chamada",
+  checklist: "Checklist",
+};
+
+function buildExportText(pkg, property) {
+  const lines = [
+    `# ${property.titulo_interno}`,
+    "",
+    "_Conteúdo gerado por IA — revise fatos, preço, disponibilidade e fotos antes de publicar._",
+    "",
+  ];
+  for (const type of ASSET_TYPES) {
+    const asset = pkg.assets.find((a) => a.tipo === type);
+    if (!asset) continue;
+    lines.push(`## ${ASSET_LABELS[type] || type}`, "", asset.conteudo, "");
+  }
+  return lines.join("\n");
+}
+
+function slugify(text) {
+  return String(text || "imovel")
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "") || "imovel";
+}
+
+async function fetchOwnedPackage(packageId, userId) {
+  const { data: pkg } = await supabase.from("anuncia_launch_packages").select("*, anuncia_properties!inner(user_id)").eq("id", packageId).maybeSingle();
+  if (!pkg || pkg.anuncia_properties.user_id !== userId) return null;
+  return pkg;
+}
+
+app.get("/api/packages/:id/export", requireAuth, async (req, res) => {
+  const pkg = await fetchOwnedPackage(req.params.id, req.userId);
+  if (!pkg) return res.status(404).json({ error: "Pacote não encontrado" });
+  if (pkg.status !== "concluido") return res.status(400).json({ error: "Pacote ainda não está pronto pra exportar" });
+
+  const { data: property } = await supabase.from("anuncia_properties").select("*").eq("id", pkg.property_id).maybeSingle();
+  const full = await fetchPackageWithAssets(pkg.id);
+  const format = req.query.format === "txt" ? "txt" : "md";
+  const text = buildExportText(full, property);
+  const filename = `anuncia-${slugify(property.titulo_interno)}.${format}`;
+
+  res.setHeader("Content-Type", format === "md" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8");
+  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.send(text);
+});
+
+app.post("/api/packages/:id/share", requireAuth, async (req, res) => {
+  const pkg = await fetchOwnedPackage(req.params.id, req.userId);
+  if (!pkg) return res.status(404).json({ error: "Pacote não encontrado" });
+
+  const token = crypto.randomBytes(24).toString("hex"); // 192 bits, imprevisível
+  const { data, error } = await supabase
+    .from("anuncia_launch_packages")
+    .update({ share_token: token, share_enabled: true })
+    .eq("id", pkg.id)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: "Erro ao gerar link" });
+  res.json({ share_token: data.share_token, share_enabled: data.share_enabled });
+});
+
+app.delete("/api/packages/:id/share", requireAuth, async (req, res) => {
+  const pkg = await fetchOwnedPackage(req.params.id, req.userId);
+  if (!pkg) return res.status(404).json({ error: "Pacote não encontrado" });
+
+  // Revoga de verdade: apaga o token, não só desativa. Gerar de novo depois
+  // sempre cria um token novo (nunca reaproveita um já compartilhado).
+  const { error } = await supabase
+    .from("anuncia_launch_packages")
+    .update({ share_enabled: false, share_token: null })
+    .eq("id", pkg.id);
+  if (error) return res.status(500).json({ error: "Erro ao revogar link" });
+  res.json({ sucesso: true });
+});
+
+// Rota pública — SEM requireAuth de propósito. O próprio token é a
+// autorização. Retorna só um objeto curado (nunca a linha crua das
+// tabelas), pra nunca vazar campo interno (user_id, palavras_proibidas,
+// stripe_customer_id, etc.) através do link compartilhado.
+app.get("/api/public/packages/:token", async (req, res) => {
+  const { data: pkg } = await supabase
+    .from("anuncia_launch_packages")
+    .select("*")
+    .eq("share_token", req.params.token)
+    .eq("share_enabled", true)
+    .maybeSingle();
+  if (!pkg) return res.status(404).json({ error: "Link inválido ou revogado" });
+
+  const { data: property } = await supabase
+    .from("anuncia_properties")
+    .select("user_id, titulo_interno, tipo, cidade, bairro, preco, dormitorios, suites, banheiros, vagas, area_privativa")
+    .eq("id", pkg.property_id)
+    .maybeSingle();
+  if (!property) return res.status(404).json({ error: "Link inválido ou revogado" });
+
+  const { data: assets } = await supabase
+    .from("anuncia_content_assets")
+    .select("tipo, titulo, conteudo")
+    .eq("package_id", pkg.id)
+    .order("tipo");
+
+  const { data: profile } = await supabase
+    .from("anuncia_professional_profiles")
+    .select("nome_publico, contatos, redes_sociais, logo_url, imobiliaria")
+    .eq("id", property.user_id)
+    .maybeSingle();
+
+  const { user_id, ...propertyPublic } = property;
+  res.json({ property: propertyPublic, assets: assets || [], profile: profile || null });
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

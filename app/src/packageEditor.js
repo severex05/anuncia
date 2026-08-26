@@ -1,6 +1,7 @@
 import {
   generatePackage, listPackages, getPackage, updateChecklist,
   updateAsset, regenerateAsset, getAssetVersions, restoreAssetVersion,
+  exportPackage, createShareLink, revokeShareLink,
 } from "./api.js";
 
 const ASSET_LABELS = {
@@ -50,6 +51,9 @@ export async function renderPackageEditorScreen(property, onBack) {
     genAssetTypes: new Set(ASSET_ORDER),
     genInstruction: "",
     generating: false,
+    exporting: false,
+    sharing: false,
+    shareCopyLabel: "Copiar link",
   };
 
   async function load() {
@@ -172,6 +176,59 @@ export async function renderPackageEditorScreen(property, onBack) {
     render();
   }
 
+  async function doExport(format) {
+    state.exporting = true;
+    state.error = "";
+    render();
+    try {
+      await exportPackage(state.pkg.id, format);
+    } catch (err) {
+      state.error = err.message;
+    }
+    state.exporting = false;
+    render();
+  }
+
+  async function doShare() {
+    state.sharing = true;
+    state.error = "";
+    render();
+    try {
+      const { share_token, share_enabled } = await createShareLink(state.pkg.id);
+      state.pkg.share_token = share_token;
+      state.pkg.share_enabled = share_enabled;
+    } catch (err) {
+      state.error = err.message;
+    }
+    state.sharing = false;
+    render();
+  }
+
+  async function doRevokeShare() {
+    if (!confirm("Revogar o link? Quem tiver o link atual perde o acesso.")) return;
+    state.sharing = true;
+    state.error = "";
+    render();
+    try {
+      await revokeShareLink(state.pkg.id);
+      state.pkg.share_enabled = false;
+      state.pkg.share_token = null;
+    } catch (err) {
+      state.error = err.message;
+    }
+    state.sharing = false;
+    render();
+  }
+
+  function copyShareLink() {
+    const url = `${window.location.origin}/share/${state.pkg.share_token}`;
+    navigator.clipboard?.writeText(url).then(() => {
+      state.shareCopyLabel = "Copiado!";
+      render();
+      setTimeout(() => { state.shareCopyLabel = "Copiar link"; render(); }, 1500);
+    });
+  }
+
   function copyActive() {
     navigator.clipboard?.writeText(state.draftContent).then(() => {
       const btn = document.querySelector("#copy-btn");
@@ -270,6 +327,25 @@ export async function renderPackageEditorScreen(property, onBack) {
     `;
   }
 
+  function renderShare() {
+    const shareUrl = state.pkg.share_token ? `${window.location.origin}/share/${state.pkg.share_token}` : "";
+    return `
+      <div class="checklist-panel">
+        <p class="warnings-title">Compartilhar página privada</p>
+        ${state.pkg.share_enabled
+          ? `
+            <p class="auth-subtitle">Qualquer pessoa com este link vê o pacote, sem precisar de conta.</p>
+            <div class="regen-custom">
+              <input type="text" readonly value="${shareUrl}" />
+              <button type="button" id="copy-share-btn" class="btn-secondary">${state.shareCopyLabel}</button>
+              <button type="button" id="revoke-share-btn" class="btn-danger-link" ${state.sharing ? "disabled" : ""}>Revogar</button>
+            </div>
+          `
+          : `<button type="button" id="create-share-btn" class="btn-secondary" ${state.sharing ? "disabled" : ""}>${state.sharing ? "Gerando..." : "Gerar link para compartilhar"}</button>`}
+      </div>
+    `;
+  }
+
   function renderEditor() {
     const asset = state.pkg.assets.find((a) => a.tipo === state.activeType);
     return `
@@ -277,6 +353,8 @@ export async function renderPackageEditorScreen(property, onBack) {
         <header class="dashboard-header">
           <h1 class="auth-title">${property.titulo_interno}</h1>
           <div>
+            <button type="button" id="export-md-btn" class="btn-secondary" ${state.exporting ? "disabled" : ""}>Exportar .md</button>
+            <button type="button" id="export-txt-btn" class="btn-secondary" ${state.exporting ? "disabled" : ""}>Exportar .txt</button>
             <button type="button" id="regenerate-package-btn" class="btn-secondary">Gerar novo pacote</button>
             <button type="button" id="back-btn" class="btn-secondary">Voltar</button>
           </div>
@@ -285,6 +363,7 @@ export async function renderPackageEditorScreen(property, onBack) {
         <p class="auth-subtitle disclaimer">Conteúdo gerado por IA — é sempre um rascunho. Revise fatos, preço, disponibilidade e fotos antes de publicar.</p>
 
         ${renderWarnings()}
+        ${renderShare()}
 
         <div class="asset-tabs">
           ${ASSET_ORDER.map((t) => `<button type="button" class="asset-tab ${t === state.activeType ? "asset-tab-active" : ""}" data-type="${t}">${ASSET_LABELS[t]}</button>`).join("")}
@@ -356,6 +435,15 @@ export async function renderPackageEditorScreen(property, onBack) {
       state.lastIdempotencyKey = null;
       render();
     });
+    document.querySelector("#export-md-btn").addEventListener("click", () => doExport("md"));
+    document.querySelector("#export-txt-btn").addEventListener("click", () => doExport("txt"));
+
+    const createShareBtn = document.querySelector("#create-share-btn");
+    if (createShareBtn) createShareBtn.addEventListener("click", doShare);
+    const copyShareBtn = document.querySelector("#copy-share-btn");
+    if (copyShareBtn) copyShareBtn.addEventListener("click", copyShareLink);
+    const revokeShareBtn = document.querySelector("#revoke-share-btn");
+    if (revokeShareBtn) revokeShareBtn.addEventListener("click", doRevokeShare);
 
     document.querySelectorAll(".asset-tab").forEach((btn) => {
       btn.addEventListener("click", () => {

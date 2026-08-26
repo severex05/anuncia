@@ -1,6 +1,7 @@
 import { supabase } from "./supabaseClient.js";
 import { listProperties, duplicateProperty, deleteProperty, updateProperty, getProperty } from "./api.js";
 import { renderPropertyFormScreen } from "./propertyForm.js";
+import { renderPackageEditorScreen } from "./packageEditor.js";
 
 const STATUS_LABEL = {
   rascunho: "Rascunho",
@@ -78,6 +79,7 @@ function renderCard(p) {
         ${p.preco ? `<p class="property-price">R$ ${Number(p.preco).toLocaleString("pt-BR")}</p>` : ""}
       </div>
       <div class="property-card-actions">
+        <button type="button" class="btn-secondary" data-action="package">${p.status === "rascunho" ? "Gerar pacote" : "Ver pacote"}</button>
         <button type="button" class="btn-secondary" data-action="edit">Editar</button>
         <button type="button" class="btn-secondary" data-action="duplicate">Duplicar</button>
         <button type="button" class="btn-secondary" data-action="archive">${p.status === "arquivado" ? "Desarquivar" : "Arquivar"}</button>
@@ -90,6 +92,11 @@ function renderCard(p) {
 function wireCardActions(listEl, filters) {
   listEl.querySelectorAll(".property-card").forEach((card) => {
     const id = card.dataset.id;
+
+    card.querySelector('[data-action="package"]').addEventListener("click", async () => {
+      const property = await getProperty(id);
+      renderPackageEditorScreen(property, () => renderList(filters));
+    });
 
     card.querySelector('[data-action="edit"]').addEventListener("click", async () => {
       const property = await getProperty(id);

@@ -52,12 +52,27 @@ const RESPONSE_TOOL = {
             severity: { type: "string", enum: ALERT_SEVERITIES },
             message: { type: "string" },
             suggestion: { type: "string" },
+            excerpt: { type: "string", description: "Trecho curto do texto gerado ao qual o alerta se refere, se aplicável." },
           },
           required: ["category", "severity", "message"],
         },
       },
     },
     required: ["assets"],
+  },
+};
+
+const REGENERATE_TOOL = {
+  name: "emitir_ativo_regenerado",
+  description: "Emite a versão revisada de um único ativo de marketing, aplicando a instrução do usuário.",
+  input_schema: {
+    type: "object",
+    properties: {
+      title: { type: "string" },
+      content: { type: "string" },
+      warnings: { type: "array", items: { type: "string" } },
+    },
+    required: ["content"],
   },
 };
 
@@ -73,7 +88,7 @@ Regras absolutas:
 - Escreva em português do Brasil, no tom de voz descrito no perfil do corretor.
 - Todo o conteúdo é um rascunho para revisão humana antes de publicar — não afirme que já está pronto para publicação.
 
-Você deve responder chamando a ferramenta emitir_pacote_lancamento, preenchendo um item em "assets" para CADA tipo de ativo solicitado, e listando qualquer risco de compliance em "global_warnings" (categorias: missing_fact, unsupported_claim, sensitive_language, consistency, other).`;
+Você deve responder chamando a ferramenta emitir_pacote_lancamento, preenchendo um item em "assets" para CADA tipo de ativo solicitado, e listando qualquer risco de compliance em "global_warnings" (categorias: missing_fact, unsupported_claim, sensitive_language, consistency, other). Quando o alerta se referir a um trecho específico de algum ativo gerado, inclua esse trecho em "excerpt".`;
 
 function buildUserMessage({ profile, property, assetTypes, instruction }) {
   const perfilResumo = {
@@ -240,4 +255,69 @@ async function generateLaunchPackage({ profile, property, assetTypes, instructio
   return { result, modelo_usado: MODEL };
 }
 
-module.exports = { generateLaunchPackage, GenerationError, ASSET_TYPES };
+// Regeneração de mock — aplica transformações simples de acordo com
+// palavras-chave da instrução, sem chamar IA nenhuma.
+function regenerateMock({ currentContent, instruction }) {
+  let content = currentContent;
+  const lower = instruction.toLowerCase();
+
+  if (lower.includes("curt") || lower.includes("resumi")) {
+    content = content.split(/\n/)[0].slice(0, 140);
+  }
+  if (lower.includes("emoji")) {
+    content = content.replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "").replace(/ {2,}/g, " ").trim();
+  }
+  if (lower.includes("diret")) {
+    content = content.replace(/\s*\[conteúdo de exemplo[^\]]*\]/gi, "").trim();
+  }
+  if (content === currentContent) {
+    content = `${currentContent}\n[mock: instrução "${instruction}" aplicada]`;
+  }
+
+  return { content, title: undefined, warnings: [] };
+}
+
+async function regenerateAsset({ profile, property, assetType, currentContent, instruction }) {
+  if (!anthropic) {
+    return { ...regenerateMock({ currentContent, instruction }), modelo_usado: "mock" };
+  }
+
+  const perfilResumo = {
+    tom_de_voz: profile?.tom_de_voz || "",
+    palavras_preferidas: profile?.palavras_preferidas || [],
+    palavras_proibidas: profile?.palavras_proibidas || [],
+  };
+  const imovel = { ...property };
+  delete imovel.id; delete imovel.user_id; delete imovel.created_at; delete imovel.updated_at;
+
+  const userMessage = [
+    `Ativo a revisar: ${assetType}`,
+    `Conteúdo atual:\n${currentContent}`,
+    `Instrução do usuário: ${instruction}`,
+    `Perfil do corretor (tom/regras):\n${JSON.stringify(perfilResumo, null, 2)}`,
+    `Dados do imóvel (não invente além disso):\n${JSON.stringify(imovel, null, 2)}`,
+  ].join("\n\n");
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      system: SYSTEM_PROMPT,
+      messages: [{ role: "user", content: userMessage }],
+      tools: [REGENERATE_TOOL],
+      tool_choice: { type: "tool", name: REGENERATE_TOOL.name },
+    }, { timeout: REQUEST_TIMEOUT_MS });
+  } catch (err) {
+    console.error("[ai/regenerate]", err.message);
+    throw new GenerationError("Provedor de IA indisponível ou timeout", { retryable: true });
+  }
+
+  const toolUse = response.content?.find((b) => b.type === "tool_use");
+  if (!toolUse?.input?.content || !String(toolUse.input.content).trim()) {
+    throw new GenerationError("IA não retornou conteúdo válido", { retryable: true });
+  }
+  return { ...toolUse.input, modelo_usado: MODEL };
+}
+
+module.exports = { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES };

@@ -103,6 +103,9 @@ ALTER TABLE anuncia_launch_packages ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role tem acesso total (packages)" ON anuncia_launch_packages
   USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_anuncia_launch_packages_property ON anuncia_launch_packages(property_id);
+-- checklist_state (Sprint 4): {"0": true, "2": true, ...} — índice da linha do
+-- ativo tipo "checklist" -> marcado ou não, antes de exportar.
+ALTER TABLE anuncia_launch_packages ADD COLUMN IF NOT EXISTS checklist_state JSONB NOT NULL DEFAULT '{}';
 
 -- Cada ativo individual do pacote (descrição, instagram, whatsapp, etc.)
 CREATE TABLE IF NOT EXISTS anuncia_content_assets (
@@ -116,6 +119,8 @@ CREATE TABLE IF NOT EXISTS anuncia_content_assets (
   conteudo TEXT NOT NULL DEFAULT '',
   status TEXT DEFAULT 'gerado',
   versao INTEGER NOT NULL DEFAULT 1,
+  origem TEXT NOT NULL DEFAULT 'geracao_ia'
+    CHECK (origem IN ('geracao_ia', 'edicao_manual', 'regeneracao_ia', 'restauracao')),
   origem_campos TEXT[] DEFAULT '{}',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -124,6 +129,23 @@ ALTER TABLE anuncia_content_assets ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role tem acesso total (assets)" ON anuncia_content_assets
   USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_anuncia_content_assets_package ON anuncia_content_assets(package_id);
+
+-- Histórico de versões de um ativo (Sprint 4) — snapshot do conteúdo
+-- anterior toda vez que o ativo é editado, regenerado ou restaurado.
+CREATE TABLE IF NOT EXISTS anuncia_content_asset_versions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  asset_id UUID NOT NULL REFERENCES anuncia_content_assets(id) ON DELETE CASCADE,
+  versao INTEGER NOT NULL,
+  titulo TEXT DEFAULT '',
+  conteudo TEXT NOT NULL,
+  origem TEXT NOT NULL DEFAULT 'edicao_manual'
+    CHECK (origem IN ('geracao_ia', 'edicao_manual', 'regeneracao_ia', 'restauracao')),
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE anuncia_content_asset_versions ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role tem acesso total (asset_versions)" ON anuncia_content_asset_versions
+  USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_anuncia_content_asset_versions_asset ON anuncia_content_asset_versions(asset_id, versao DESC);
 
 -- Alertas de revisão/conformidade — podem ser por ativo específico (asset_id)
 -- ou no nível do pacote inteiro (package_id), pois o contrato de geração da

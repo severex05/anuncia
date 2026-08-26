@@ -47,3 +47,27 @@ export const updateProperty = (id, fields) =>
 export const duplicateProperty = (id) => authedFetch(`/api/properties/${id}/duplicate`, { method: "POST" });
 
 export const deleteProperty = (id) => authedFetch(`/api/properties/${id}`, { method: "DELETE" });
+
+export const generatePackage = (propertyId, { idempotencyKey, assetTypes, instruction }) =>
+  authedFetch(`/api/properties/${propertyId}/generate`, {
+    method: "POST",
+    body: JSON.stringify({ idempotency_key: idempotencyKey, asset_types: assetTypes, instruction }),
+  });
+
+export const listPackages = (propertyId) => authedFetch(`/api/properties/${propertyId}/packages`);
+
+export const getPackage = (packageId) => authedFetch(`/api/packages/${packageId}`);
+
+export const updateChecklist = (packageId, state) =>
+  authedFetch(`/api/packages/${packageId}/checklist`, { method: "PUT", body: JSON.stringify({ state }) });
+
+export const updateAsset = (assetId, { content, title }) =>
+  authedFetch(`/api/assets/${assetId}`, { method: "PUT", body: JSON.stringify({ content, title }) });
+
+export const regenerateAsset = (assetId, instruction) =>
+  authedFetch(`/api/assets/${assetId}/regenerate`, { method: "POST", body: JSON.stringify({ instruction }) });
+
+export const getAssetVersions = (assetId) => authedFetch(`/api/assets/${assetId}/versions`);
+
+export const restoreAssetVersion = (assetId, versionId) =>
+  authedFetch(`/api/assets/${assetId}/versions/${versionId}/restore`, { method: "POST" });

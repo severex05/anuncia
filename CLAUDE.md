@@ -32,7 +32,7 @@ cd server && npm install && npm run dev
 
 ## Estado atual
 
-**Sprint 0, 1, 2 e 3 concluídos** — ver `BACKLOG.md`.
+**Sprint 0, 1, 2, 3 e 4 concluídos** — ver `BACKLOG.md`.
 
 Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI). Vercel: bloqueado por permissão do GitHub App (ver histórico da sessão 2026-08-25 — precisa liberar "anuncia" em github.com/settings/installations). Railway: ainda não conectado (MCP requer OAuth interativo).
 
@@ -42,5 +42,8 @@ Sprint 2 (CRUD de imóvel) também testado de ponta a ponta: criar, validação 
 
 Sprint 3 (geração) implementado e testado de ponta a ponta com Claude real (`claude-haiku-4-5-20251001`, override via `ANTHROPIC_MODEL`): `POST /api/properties/:id/generate` (contrato JSON forçado via tool-use, validação server-side + 1 retry automático de correção, mock de IA quando `ANTHROPIC_API_KEY` não está configurada, idempotência por `idempotency_key` — testada com replay, corrida de duplo clique em paralelo e retry real após falha de provedor reaproveitando a mesma linha de pacote sem perder o rascunho), `GET /api/properties/:id/packages`, `GET /api/packages/:id`. Guardrails de compliance confirmados na prática: a IA sinaliza dado ausente (`missing_fact`) em vez de inventar. Contador de consumo (`anuncia_usage_events`, tipo `geracao`) confirmado 1:1 com gerações bem-sucedidas — nem replay nem corrida geram consumo duplicado. Migração aplicada: `anuncia_compliance_alerts` agora aceita alerta no nível do pacote (`package_id`), não só por ativo.
 
+Sprint 4 (editor e revisão) implementado e testado de ponta a ponta **no navegador real** (Playwright, não só via curl): tela de geração (`app/src/packageEditor.js`) com seleção de tipos de ativo + instrução opcional, editor por ativo com abas pros 9 tipos, "Copiar" (clipboard), edição manual salvável (`PUT /api/assets/:id`), regeneração com instrução rápida usando IA real ("Deixe mais curto" testado ao vivo, ~5s), histórico de versões (`GET/POST /api/assets/:id/versions...`) com restaurar testado e confirmado (não duplica, snapshot correto), checklist antes de exportar (`PUT /api/packages/:id/checklist`) com persistência confirmada após reload de página, painel de alertas de revisão mostrando categoria/trecho/sugestão. Status do imóvel muda pra "Gerado" após a 1ª geração (confirmado no dashboard). Contador de consumo estendido pra cobrir `regeneracao`, não só `geracao`.
+
 **Pendências conhecidas, não bloqueantes:**
 - Upload de logo não limpa o Storage quando a conta é excluída (cascade só cobre tabelas do Postgres, não objetos do bucket) — órfão pequeno, resolver quando o volume justificar.
+- Regeneração de ativo único não persiste os `warnings` retornados como `compliance_alerts` no banco (só aparecem na resposta imediata da regeneração) — os `global_warnings` do pacote inteiro (geração completa) persistem normalmente.

@@ -2,7 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
-const { generateLaunchPackage, GenerationError, ASSET_TYPES } = require("./ai");
+const { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES } = require("./ai");
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
@@ -347,6 +347,7 @@ app.post("/api/properties/:id/generate", requireAuth, async (req, res) => {
       titulo: a.title || "",
       conteudo: a.content,
       status: "gerado",
+      origem: "geracao_ia",
       origem_campos: a.source_fields || [],
     }));
     const { data: insertedAssets, error: assetsError } = await supabase
@@ -354,6 +355,11 @@ app.post("/api/properties/:id/generate", requireAuth, async (req, res) => {
       .insert(assetsToInsert)
       .select();
     if (assetsError) throw new Error(`falha ao salvar ativos: ${assetsError.message}`);
+    // Sem snapshot de histórico aqui de propósito: a v1 recém-criada JÁ é o
+    // "current" (linha viva em anuncia_content_assets). Uma entrada no
+    // histórico só é gravada quando essa linha vai ser SUBSTITUÍDA (ver
+    // snapshotAssetVersion, chamado antes de cada update/regenerate/restore)
+    // — snapshotar aqui também duplicaria a v1 na primeira edição.
 
     const alertRows = [];
     for (const w of result.global_warnings || []) {
@@ -363,6 +369,7 @@ app.post("/api/properties/:id/generate", requireAuth, async (req, res) => {
         severidade: w.severity,
         explicacao: w.message,
         sugestao: w.suggestion || "",
+        trecho: w.excerpt || "",
       });
     }
     for (const a of result.assets) {
@@ -432,6 +439,156 @@ app.get("/api/packages/:id", requireAuth, async (req, res) => {
   if (!pkg || pkg.anuncia_properties.user_id !== req.userId) return res.status(404).json({ error: "Pacote não encontrado" });
   const full = await fetchPackageWithAssets(pkg.id);
   res.json(full);
+});
+
+app.put("/api/packages/:id/checklist", requireAuth, async (req, res) => {
+  const { data: pkg } = await supabase.from("anuncia_launch_packages").select("*, anuncia_properties!inner(user_id)").eq("id", req.params.id).maybeSingle();
+  if (!pkg || pkg.anuncia_properties.user_id !== req.userId) return res.status(404).json({ error: "Pacote não encontrado" });
+  const patch = req.body?.state;
+  if (!patch || typeof patch !== "object") return res.status(400).json({ error: "state é obrigatório" });
+
+  const merged = { ...(pkg.checklist_state || {}), ...patch };
+  const { data, error } = await supabase
+    .from("anuncia_launch_packages")
+    .update({ checklist_state: merged })
+    .eq("id", pkg.id)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: "Erro ao salvar checklist" });
+  res.json({ checklist_state: data.checklist_state });
+});
+
+// ── Sprint 4: editor, regeneração e histórico de um ativo ───────────────────
+
+async function fetchOwnedAsset(assetId, userId) {
+  const { data: asset } = await supabase.from("anuncia_content_assets").select("*").eq("id", assetId).maybeSingle();
+  if (!asset) return null;
+  const { data: pkg } = await supabase
+    .from("anuncia_launch_packages")
+    .select("*, anuncia_properties!inner(user_id, id)")
+    .eq("id", asset.package_id)
+    .maybeSingle();
+  if (!pkg || pkg.anuncia_properties.user_id !== userId) return null;
+  return { asset, package: pkg, property_id: pkg.anuncia_properties.id };
+}
+
+async function snapshotAssetVersion(asset) {
+  await supabase.from("anuncia_content_asset_versions").insert({
+    asset_id: asset.id, versao: asset.versao, titulo: asset.titulo, conteudo: asset.conteudo, origem: asset.origem,
+  });
+}
+
+app.put("/api/assets/:id", requireAuth, async (req, res) => {
+  const owned = await fetchOwnedAsset(req.params.id, req.userId);
+  if (!owned) return res.status(404).json({ error: "Ativo não encontrado" });
+  const { content, title } = req.body || {};
+  if (!content || !String(content).trim()) return res.status(400).json({ error: "content é obrigatório" });
+
+  await snapshotAssetVersion(owned.asset);
+
+  const { data, error } = await supabase
+    .from("anuncia_content_assets")
+    .update({
+      conteudo: content,
+      titulo: title !== undefined ? title : owned.asset.titulo,
+      versao: owned.asset.versao + 1,
+      origem: "edicao_manual",
+      status: "editado",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", owned.asset.id)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: "Erro ao salvar edição" });
+  res.json(data);
+});
+
+app.post("/api/assets/:id/regenerate", requireAuth, async (req, res) => {
+  const owned = await fetchOwnedAsset(req.params.id, req.userId);
+  if (!owned) return res.status(404).json({ error: "Ativo não encontrado" });
+  const { instruction } = req.body || {};
+  if (!instruction || !String(instruction).trim()) return res.status(400).json({ error: "instruction é obrigatório" });
+
+  const property = await fetchOwnedProperty(owned.property_id, req.userId);
+  if (!property) return res.status(404).json({ error: "Imóvel não encontrado" });
+  const { data: profile } = await supabase.from("anuncia_professional_profiles").select("*").eq("id", req.userId).maybeSingle();
+
+  try {
+    const { content, title, warnings, modelo_usado } = await regenerateAsset({
+      profile, property, assetType: owned.asset.tipo, currentContent: owned.asset.conteudo, instruction,
+    });
+
+    await snapshotAssetVersion(owned.asset);
+
+    const { data, error } = await supabase
+      .from("anuncia_content_assets")
+      .update({
+        conteudo: content,
+        titulo: title !== undefined ? title : owned.asset.titulo,
+        versao: owned.asset.versao + 1,
+        origem: "regeneracao_ia",
+        status: "gerado",
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", owned.asset.id)
+      .select()
+      .single();
+    if (error) return res.status(500).json({ error: "Erro ao salvar regeneração" });
+
+    await supabase.from("anuncia_usage_events").insert({
+      user_id: req.userId,
+      tipo_evento: "regeneracao",
+      metadata: { asset_id: owned.asset.id, tipo: owned.asset.tipo, modelo: modelo_usado, instruction },
+    });
+
+    res.json({ ...data, warnings: warnings || [] });
+  } catch (err) {
+    console.error("[regenerate]", err.message);
+    const retryable = err instanceof GenerationError ? err.retryable : true;
+    res.status(502).json({ error: "Falha ao regenerar. O conteúdo atual não foi alterado — pode tentar novamente.", retryable });
+  }
+});
+
+app.get("/api/assets/:id/versions", requireAuth, async (req, res) => {
+  const owned = await fetchOwnedAsset(req.params.id, req.userId);
+  if (!owned) return res.status(404).json({ error: "Ativo não encontrado" });
+  const { data, error } = await supabase
+    .from("anuncia_content_asset_versions")
+    .select("*")
+    .eq("asset_id", owned.asset.id)
+    .order("versao", { ascending: false });
+  if (error) return res.status(500).json({ error: "Erro ao buscar histórico" });
+  res.json({ current: owned.asset, history: data });
+});
+
+app.post("/api/assets/:id/versions/:versionId/restore", requireAuth, async (req, res) => {
+  const owned = await fetchOwnedAsset(req.params.id, req.userId);
+  if (!owned) return res.status(404).json({ error: "Ativo não encontrado" });
+  const { data: version } = await supabase
+    .from("anuncia_content_asset_versions")
+    .select("*")
+    .eq("id", req.params.versionId)
+    .eq("asset_id", owned.asset.id)
+    .maybeSingle();
+  if (!version) return res.status(404).json({ error: "Versão não encontrada" });
+
+  await snapshotAssetVersion(owned.asset);
+
+  const { data, error } = await supabase
+    .from("anuncia_content_assets")
+    .update({
+      conteudo: version.conteudo,
+      titulo: version.titulo,
+      versao: owned.asset.versao + 1,
+      origem: "restauracao",
+      status: "editado",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", owned.asset.id)
+    .select()
+    .single();
+  if (error) return res.status(500).json({ error: "Erro ao restaurar versão" });
+  res.json(data);
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

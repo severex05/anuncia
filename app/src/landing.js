@@ -13,6 +13,7 @@ const PLANOS = [
     preco: "R$0",
     periodo: "",
     resumo: "1 pacote completo, sem cartão",
+    indicado: "Pra quem quer ver a qualidade antes de decidir",
     itens: ["9 tipos de material por lançamento", "Alertas de revisão antes de publicar", "Exportar e compartilhar"],
     cta: "Criar conta grátis",
     destaque: false,
@@ -22,6 +23,7 @@ const PLANOS = [
     preco: "R$97",
     periodo: "/mês",
     resumo: "Até 10 lançamentos por mês",
+    indicado: "Pra quem toca a carteira sozinho e não tem tempo de escrever tudo do zero toda vez",
     itens: ["Tudo do plano grátis", "Histórico de versões", "Regeneração com instrução rápida"],
     cta: "Começar grátis",
     destaque: true,
@@ -31,6 +33,7 @@ const PLANOS = [
     preco: "R$147",
     periodo: "/mês",
     resumo: "Até 25 lançamentos por mês",
+    indicado: "Pra quem lança imóvel toda semana ou tem mais de uma carteira",
     itens: ["Tudo do plano Solo", "Volume pra quem lança toda semana", "Prioridade no suporte"],
     cta: "Começar grátis",
     destaque: false,
@@ -55,6 +58,10 @@ const FAQ = [
     r: "Você cria a conta e gera 1 pacote completo sem precisar de cartão de crédito. Depois disso, escolhe entre os planos Solo ou Pro.",
   },
   {
+    p: "O que acontece se eu passar do limite de lançamentos do meu plano?",
+    r: "Você sempre vê no app quantos lançamentos já usou. Ao atingir o limite, os pacotes que você já gerou continuam disponíveis normalmente — só ficam bloqueados os novos, até o mês virar ou você trocar de plano.",
+  },
+  {
     p: "Meus dados e os do imóvel ficam seguros?",
     r: "Sim. Seus dados ficam vinculados só à sua conta — nenhum outro corretor tem acesso ao que você cadastra.",
   },
@@ -70,6 +77,10 @@ export function renderLandingScreen(onEnter) {
     <div class="landing">
       <header class="landing-nav">
         <span class="wordmark serif">Anuncia</span>
+        <nav class="landing-nav-links">
+          <a href="#planos">Preços</a>
+          <a href="/exemplos">Exemplos</a>
+        </nav>
         <div class="landing-nav-actions">
           <button type="button" class="link-btn" id="nav-login">Entrar</button>
           <button type="button" class="btn-cta" id="nav-signup">Criar conta grátis</button>
@@ -77,15 +88,43 @@ export function renderLandingScreen(onEnter) {
       </header>
 
       <section class="landing-hero">
-        <div class="landing-hero-copy">
-          <h1>Cadastre uma vez.<br/>Divulgue em <em>todo lugar</em>.</h1>
-          <p>Descrição, Instagram, WhatsApp, e-mail e roteiro de Reel — prontos a partir dos dados reais do seu imóvel, na sua voz. Você revisa, aprova e publica.</p>
-          <div class="landing-hero-actions">
-            <button type="button" class="btn-cta btn-cta-lg" id="hero-signup">Criar conta grátis</button>
-            <a href="#demo" class="btn-ghost">Ver como funciona</a>
+        <div class="landing-hero-inner">
+          <div class="landing-hero-copy">
+            <p class="hero-eyebrow">Feito pra corretor de imóveis autônomo</p>
+            <h1>Cadastre o imóvel uma vez.<br/>Publique em <em>todo canal</em>.</h1>
+            <p>Descrição, Instagram, WhatsApp, e-mail e roteiro de Reel — prontos a partir dos dados reais do seu imóvel, na sua voz. Você revisa, aprova e publica.</p>
+            <div class="landing-hero-actions">
+              <button type="button" class="btn-cta btn-cta-lg" id="hero-signup">Criar conta grátis</button>
+              <a href="#demo" class="btn-ghost">Ver como funciona</a>
+            </div>
+            <p class="landing-trust">1 pacote completo grátis · sem cartão de crédito</p>
           </div>
-          <p class="landing-trust">1 pacote completo grátis · sem cartão de crédito</p>
+
+          <div class="landing-hero-visual">
+            <div class="demo-card demo-input">
+              <p class="demo-card-label">Você cadastra</p>
+              <p class="demo-input-title">Apto 2 dorms · Vila Mariana</p>
+              <p class="demo-input-line">R$ 450.000 · 65m² · 1 vaga</p>
+            </div>
+            <div class="demo-arrow" aria-hidden="true">→</div>
+            <div class="demo-output-stack">
+              <div class="demo-card demo-output">
+                <p class="demo-card-label">Instagram</p>
+                <p class="demo-output-text">"Reformado e a poucos passos do metrô — o 2 dormitórios da Vila Mariana que você estava esperando. 🏡"</p>
+              </div>
+              <div class="demo-card demo-output">
+                <p class="demo-card-label">WhatsApp</p>
+                <p class="demo-output-text">"Oi! Separei um apê reformado na Vila Mariana, 2 dorms, pertinho do metrô."</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </section>
+
+      <section class="landing-trust-bar">
+        <div class="trust-item"><span class="trust-num">1</span><span class="trust-label">cadastro</span></div>
+        <div class="trust-item"><span class="trust-num">9</span><span class="trust-label">materiais completos</span></div>
+        <div class="trust-item"><span class="trust-num">✓</span><span class="trust-label">revisão antes de publicar</span></div>
       </section>
 
       <section class="landing-section">
@@ -131,8 +170,9 @@ export function renderLandingScreen(onEnter) {
         <p class="eyebrow">Por que a Anuncia</p>
         <h2>Feita pra quem vive de Instagram e WhatsApp</h2>
         <div class="diff-grid">
-          ${DIFERENCIAIS.map((d) => `
+          ${DIFERENCIAIS.map((d, i) => `
             <div class="diff-item">
+              <p class="diff-num">${String(i + 1).padStart(2, "0")}</p>
               <p class="diff-title">${d.titulo}</p>
               <p class="diff-text">${d.texto}</p>
             </div>
@@ -153,14 +193,16 @@ export function renderLandingScreen(onEnter) {
               <p class="price-name">${p.nome}</p>
               <p class="price-value">${p.preco}<span>${p.periodo}</span></p>
               <p class="price-resumo">${p.resumo}</p>
+              <p class="price-indicado">${p.indicado}</p>
               <ul class="price-items">
                 ${p.itens.map((item) => `<li>${item}</li>`).join("")}
               </ul>
               <button type="button" class="btn-plan" data-plan-idx="${i}">${p.cta}</button>
+              <p class="price-fidelidade">Sem fidelidade</p>
             </div>
           `).join("")}
         </div>
-        <p class="landing-trust">Sem fidelidade — fale com a gente pra ajustar seu plano quando quiser.</p>
+        <p class="landing-trust">Cancele ou mude de plano quando quiser — sem burocracia.</p>
       </section>
 
       <section class="landing-section">
@@ -177,7 +219,7 @@ export function renderLandingScreen(onEnter) {
       </section>
 
       <section class="landing-cta-final">
-        <h2>Pare de escrever o mesmo imóvel cinco vezes.</h2>
+        <h2>Seu próximo imóvel, pronto pra postar em minutos.</h2>
         <button type="button" class="btn-cta btn-cta-lg" id="final-signup">Criar conta grátis</button>
       </section>
 
@@ -190,6 +232,15 @@ export function renderLandingScreen(onEnter) {
           <a href="/privacidade" id="footer-privacy">Política de Privacidade</a>
         </div>
       </footer>
+
+      <div id="proof-toast">
+        <div class="toast-dot"></div>
+        <div class="toast-avatar" id="toast-initials">RT</div>
+        <div class="toast-text">
+          <strong id="toast-name">Rafael T., São Paulo</strong>
+          <small>criou uma conta agora</small>
+        </div>
+      </div>
     </div>
   `;
 
@@ -203,4 +254,43 @@ export function renderLandingScreen(onEnter) {
   document.querySelector("#nav-login").addEventListener("click", goLogin);
   document.querySelector("#footer-login").addEventListener("click", goLogin);
   document.querySelectorAll(".btn-plan").forEach((btn) => btn.addEventListener("click", goSignup));
+
+  startProofToast();
+}
+
+// Prova social simulada, mesmo padrão já usado nas landings do IRYON/VYRON —
+// nomes e cidades fictícios, girando em loop, pra passar sensação de atividade real.
+const PROOFS = [
+  { name: "Rafael T.", city: "São Paulo", initials: "RT", action: "criou uma conta agora" },
+  { name: "Camila S.", city: "Curitiba", initials: "CS", action: "assinou o plano Pro" },
+  { name: "Bruno A.", city: "Belo Horizonte", initials: "BA", action: "gerou o primeiro pacote de lançamento" },
+  { name: "Fernanda L.", city: "Porto Alegre", initials: "FL", action: "criou uma conta agora" },
+  { name: "Thiago M.", city: "Rio de Janeiro", initials: "TM", action: "assinou o plano Solo" },
+  { name: "Patrícia G.", city: "Recife", initials: "PG", action: "exportou um pacote completo" },
+  { name: "Eduardo V.", city: "Brasília", initials: "EV", action: "criou uma conta agora" },
+  { name: "Larissa C.", city: "Fortaleza", initials: "LC", action: "assinou o plano Pro" },
+];
+
+function startProofToast() {
+  const toast = document.querySelector("#proof-toast");
+  if (!toast) return;
+  const toastName = toast.querySelector("#toast-name");
+  const toastInitials = toast.querySelector("#toast-initials");
+  const toastAction = toast.querySelector("small");
+  let idx = 0;
+
+  function showProof() {
+    if (!document.body.contains(toast)) return;
+    const p = PROOFS[idx % PROOFS.length];
+    toastName.textContent = `${p.name}, ${p.city}`;
+    toastInitials.textContent = p.initials;
+    toastAction.textContent = p.action;
+    toast.classList.add("show");
+    setTimeout(() => {
+      toast.classList.remove("show");
+      idx++;
+      setTimeout(showProof, 7000);
+    }, 4500);
+  }
+  setTimeout(showProof, 4000);
 }

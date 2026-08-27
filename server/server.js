@@ -208,6 +208,19 @@ app.post("/api/properties", requireAuth, async (req, res) => {
     console.error("[properties/create]", error.message);
     return res.status(500).json({ error: "Erro ao criar imóvel" });
   }
+
+  const { count } = await supabase
+    .from("anuncia_properties")
+    .select("id", { count: "exact", head: true })
+    .eq("user_id", req.userId);
+  if (count === 1) {
+    await supabase.from("anuncia_usage_events").insert({
+      user_id: req.userId,
+      tipo_evento: "primeiro_imovel",
+      metadata: { property_id: data.id },
+    });
+  }
+
   res.status(201).json(data);
 });
 
@@ -663,6 +676,12 @@ app.get("/api/packages/:id/export", requireAuth, async (req, res) => {
   const text = buildExportText(full, property);
   const filename = `anuncia-${slugify(property.titulo_interno)}.${format}`;
 
+  await supabase.from("anuncia_usage_events").insert({
+    user_id: req.userId,
+    tipo_evento: "exportacao",
+    metadata: { package_id: pkg.id, format },
+  });
+
   res.setHeader("Content-Type", format === "md" ? "text/markdown; charset=utf-8" : "text/plain; charset=utf-8");
   res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
   res.send(text);
@@ -803,7 +822,26 @@ app.put("/api/admin/subscriptions/:userId", requireAdmin, async (req, res) => {
     console.error("[admin/subscriptions]", error.message);
     return res.status(500).json({ error: "Erro ao atualizar assinatura" });
   }
+
+  await supabase.from("anuncia_usage_events").insert({
+    user_id: req.params.userId,
+    tipo_evento: "assinatura",
+    metadata: { plano: data.plano, status: data.status },
+  });
+
   res.json(data);
+});
+
+// ── Sprint 7: analytics de produto ──────────────────────────────────────────
+// Cadastro acontece direto no frontend via supabase.auth.signUp() (sem
+// passar pelo backend) — este endpoint só registra o evento pro funil de
+// analytics, chamado uma vez pelo frontend logo após o signUp ter sucesso.
+app.post("/api/events/signup", requireAuth, async (req, res) => {
+  await supabase.from("anuncia_usage_events").insert({
+    user_id: req.userId,
+    tipo_evento: "cadastro",
+  });
+  res.json({ sucesso: true });
 });
 
 const PORT = process.env.PORT || 3001;

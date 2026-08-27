@@ -124,7 +124,7 @@ export function renderLandingScreen(onEnter) {
             </div>
           </div>
         </div>
-        <p class="demo-caption">Exemplo ilustrativo — o pacote real tem 9 materiais completos por lançamento.</p>
+        <p class="demo-caption">Exemplo ilustrativo — o pacote real tem 9 materiais completos por lançamento. <a href="/exemplos" id="demo-see-more">Ver mais exemplos completos →</a></p>
       </section>
 
       <section class="landing-section">
@@ -184,7 +184,11 @@ export function renderLandingScreen(onEnter) {
       <footer class="landing-footer">
         <span class="wordmark serif">Anuncia</span>
         <p>Feita para corretores autônomos e pequenas imobiliárias brasileiras.</p>
-        <button type="button" class="link-btn" id="footer-login">Entrar</button>
+        <div class="landing-footer-links">
+          <button type="button" class="link-btn" id="footer-login">Entrar</button>
+          <a href="/termos" id="footer-terms">Termos de Uso</a>
+          <a href="/privacidade" id="footer-privacy">Política de Privacidade</a>
+        </div>
       </footer>
     </div>
   `;

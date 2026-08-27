@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient.js";
+import { logSignupEvent } from "./api.js";
 
 let mode = "login"; // "login" | "signup"
 
@@ -44,6 +45,10 @@ export function renderAuthScreen(onAuthenticated) {
               ${mode === "login" ? "Ainda não tem conta?" : "Já tem conta?"}
               <button type="button" id="auth-toggle-btn">${mode === "login" ? "Criar conta" : "Entrar"}</button>
             </p>
+
+            ${mode === "signup" ? `
+              <p class="legal-fineprint">Ao criar conta, você concorda com os <a href="/termos">Termos de Uso</a> e a <a href="/privacidade">Política de Privacidade</a>.</p>
+            ` : ""}
           </div>
         </div>
       </div>
@@ -85,6 +90,7 @@ export function renderAuthScreen(onAuthenticated) {
       errorEl.textContent = "Conta criada! Verifique seu e-mail se pedirmos confirmação, ou já pode continuar.";
       errorEl.hidden = false;
       errorEl.classList.add("auth-info");
+      logSignupEvent();
     }
 
     onAuthenticated();

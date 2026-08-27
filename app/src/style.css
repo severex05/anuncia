@@ -1235,6 +1235,12 @@ section.landing-section .landing-trust {
   font-style: italic;
 }
 
+.demo-caption a {
+  color: var(--gold-deep);
+  font-weight: 600;
+  font-style: normal;
+}
+
 .diff-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1464,4 +1470,164 @@ section.landing-section .landing-trust {
   .demo-arrow {
     transform: rotate(90deg);
   }
+}
+
+/* ── Termos de Uso / Política de Privacidade ─────────────────────────────── */
+
+.legal-page {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 6vw 80px;
+  width: 100%;
+}
+
+.legal-content .auth-title {
+  margin-bottom: 4px;
+}
+
+.legal-updated {
+  color: var(--muted);
+  font-size: 0.82rem;
+  margin: 0 0 32px;
+}
+
+.legal-content h2 {
+  font-family: var(--font-sans);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 32px 0 10px;
+}
+
+.legal-content h3 {
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 18px 0 6px;
+}
+
+.legal-content p,
+.legal-content li {
+  font-size: 0.92rem;
+  line-height: 1.7;
+  color: var(--ink-text);
+}
+
+.legal-content ul {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.legal-content a {
+  color: var(--gold-deep);
+  font-weight: 600;
+}
+
+.legal-bold {
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  margin: 8px 0 16px;
+  font-size: 0.86rem;
+}
+
+.legal-table th,
+.legal-table td {
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border);
+}
+
+.legal-table th {
+  background: var(--paper-deep);
+  color: var(--ink);
+  font-weight: 700;
+}
+
+.legal-table tr:last-child td {
+  border-bottom: none;
+}
+
+.legal-fineprint {
+  text-align: center;
+  margin-top: 16px;
+  font-size: 0.76rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.legal-fineprint a {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.landing-footer-links {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.landing-footer-links a {
+  color: var(--muted);
+  font-size: 0.85rem;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.landing-footer-links a:hover {
+  color: var(--gold-deep);
+}
+
+/* ── Página de exemplos ───────────────────────────────────────────────────── */
+
+.examples-page {
+  max-width: 800px;
+}
+
+.examples-badge {
+  display: inline-block;
+  background: var(--paper-deep);
+  border: 1px solid var(--border);
+  color: var(--gold-deep);
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border-radius: 999px;
+  margin-bottom: 32px;
+}
+
+.example-property {
+  margin-bottom: 56px;
+}
+
+.example-photo {
+  height: 100px;
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.example-title {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.5rem;
+  color: var(--ink);
+  margin: 20px 0 4px;
+}
+
+.examples-cta {
+  padding: 40px 0 20px;
 }

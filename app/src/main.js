@@ -4,12 +4,19 @@ import { renderProfileScreen } from "./profile.js";
 import { renderDashboardScreen } from "./dashboard.js";
 import { renderShareScreen } from "./shareView.js";
 import { renderLandingScreen } from "./landing.js";
+import { renderTermsScreen, renderPrivacyScreen } from "./legal.js";
+import { renderExamplesScreen } from "./examples.js";
 import { getProfile } from "./api.js";
 
 function goToAuth(mode) {
   setAuthMode(mode);
   window.history.pushState({}, "", mode === "signup" ? "/cadastro" : "/entrar");
   renderAuthScreen(route);
+}
+
+function goBack() {
+  window.history.pushState({}, "", "/");
+  route();
 }
 
 async function route() {
@@ -19,6 +26,21 @@ async function route() {
   const shareMatch = window.location.pathname.match(/^\/share\/([a-f0-9]+)$/);
   if (shareMatch) {
     renderShareScreen(shareMatch[1]);
+    return;
+  }
+
+  // Termos/Privacidade (Sprint 7) — públicas, com ou sem sessão.
+  const path0 = window.location.pathname;
+  if (path0 === "/termos") {
+    renderTermsScreen(goBack);
+    return;
+  }
+  if (path0 === "/privacidade") {
+    renderPrivacyScreen(goBack);
+    return;
+  }
+  if (path0 === "/exemplos") {
+    renderExamplesScreen(goBack, goToAuth);
     return;
   }
 

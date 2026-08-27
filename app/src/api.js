@@ -35,6 +35,10 @@ export const getProfile = () => authedFetch("/api/profile");
 
 export const getSubscription = () => authedFetch("/api/subscription");
 
+// Best-effort: não deve travar o cadastro se a sessão ainda não existir
+// (ex: confirmação de e-mail pendente) ou se a chamada falhar por qualquer motivo.
+export const logSignupEvent = () => authedFetch("/api/events/signup", { method: "POST" }).catch(() => {});
+
 export const updateProfile = (updates) =>
   authedFetch("/api/profile", { method: "PUT", body: JSON.stringify(updates) });
 

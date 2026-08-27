@@ -1,9 +1,16 @@
 import { supabase } from "./supabaseClient.js";
-import { renderAuthScreen } from "./auth.js";
+import { renderAuthScreen, setAuthMode } from "./auth.js";
 import { renderProfileScreen } from "./profile.js";
 import { renderDashboardScreen } from "./dashboard.js";
 import { renderShareScreen } from "./shareView.js";
+import { renderLandingScreen } from "./landing.js";
 import { getProfile } from "./api.js";
+
+function goToAuth(mode) {
+  setAuthMode(mode);
+  window.history.pushState({}, "", mode === "signup" ? "/cadastro" : "/entrar");
+  renderAuthScreen(route);
+}
 
 async function route() {
   // Página pública de compartilhamento (Sprint 5) — sem autenticação,
@@ -18,7 +25,16 @@ async function route() {
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {
-    renderAuthScreen(route);
+    const path = window.location.pathname;
+    if (path === "/entrar") {
+      setAuthMode("login");
+      renderAuthScreen(route);
+    } else if (path === "/cadastro") {
+      setAuthMode("signup");
+      renderAuthScreen(route);
+    } else {
+      renderLandingScreen(goToAuth);
+    }
     return;
   }
 
@@ -40,5 +56,7 @@ async function route() {
 supabase.auth.onAuthStateChange((event) => {
   if (event === "SIGNED_OUT") route();
 });
+
+window.addEventListener("popstate", route);
 
 route();

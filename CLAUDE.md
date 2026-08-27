@@ -80,3 +80,21 @@ Migrações aplicadas: `sprint6_remove_dead_plan_columns` (removeu `professional
 **Limitação conhecida, não bloqueante**: o contador mensal (Solo/Pro) conta por calendário UTC, não por ciclo de assinatura real — então um upgrade de trial pra Solo no mesmo mês carrega a geração do trial pro contador do Solo. Fica resolvido quando o Asaas popular `periodo_atual_inicio`/`fim` de verdade no P1.
 
 **Ainda falta (P1, não é bloqueio do P0)**: checkout real + webhook do Asaas, portal do assinante, página de preços.
+
+## Regra permanente: zero menção a "IA" no produto (2026-08-27)
+
+Decisão explícita do Álvaro: nenhuma tela do app nem a landing pode citar "IA"/"inteligência artificial" em texto visível ao usuário — o produto se apresenta pelo mérito do trabalho (workflow, voz do corretor, revisão), não pela tecnologia por trás. Isso já era a filosofia do `LAUNCH_PLAN.md` original ("não apenas telas bonitas com a palavra IA"), agora é regra sem exceção. O aviso de "revise antes de publicar" continua existindo — só sem citar a tecnologia. Vale pra qualquer texto novo (UI, exports, e-mails, landing) daqui pra frente.
+
+## Sprint 7 (Landing) — Landing page P0 implementada e testada (2026-08-27)
+
+Varredura de "IA" no app inteiro (regra acima): só existiam 4 ocorrências reais visíveis ao usuário (`packageEditor.js` x2, `shareView.js`, e o rodapé do export em `server.js`) — todas reescritas mantendo o aviso de revisão, sem citar a tecnologia.
+
+Pesquisa rápida (`/pinterest-research`, focada em estrutura de conversão, não paleta — já temos a definitiva) confirmou o padrão "antes/depois" (input → output com seta) pra demonstração, hero com resultado em vez de categoria, CTA repetido 3x (hero, meio, fim), pricing de 3 colunas simples. Aplicado direto no código (`app/src/landing.js`), sem rodada nova de Claude Design — reaproveita 100% os tokens/tipografia já publicados.
+
+Nova landing (`/`) com: hero (headline + CTA + prova de confiança), problema (3 dores), demonstração antes/depois (imóvel fictício → Instagram/WhatsApp/Chamada, rotulado "exemplo ilustrativo"), 6 diferenciais, 3 planos (Teste grátis/Solo/Pro, Solo destacado "mais popular"), FAQ em acordeão (`<details>`, sem JS extra) e CTA final. Roteamento novo em `main.js`: usuário sem sessão em `/` vê a landing; `/entrar` e `/cadastro` (linkáveis, úteis pra campanha paga futura) pulam direto pro formulário de auth no modo certo; `auth.js` ganhou `setAuthMode()` exportado. `window.history.pushState` + listener de `popstate` pra voltar funcionar direito.
+
+Testado no navegador real: clique nos 3 CTAs leva pra `/cadastro` no modo certo, `/entrar` direto funciona (bookmarkável), botão voltar do navegador retorna a landing, accordion do FAQ abre/fecha, cadastro+login completo via usuário de teste chegou até o onboarding normalmente (perfil com CPF/celular do Sprint 6 aparecendo certinho), responsivo mobile conferido (seta da demonstração gira pra vertical, grids empilham). Banco de teste limpo depois.
+
+**Achado no caminho, não é bug do Anuncia**: o formulário público de cadastro do Supabase rejeita e-mails em domínios sem registro MX real (`@anuncia-test.com`, usado historicamente nos testes deste projeto) com `email_address_invalid` — só funciona via Admin API (que pula essa validação) ou um domínio de e-mail de verdade. Vale lembrar em sessões futuras: pra testar o formulário de cadastro *público* de qualquer projeto Supabase, usar um domínio com MX real (ex: mailinator.com), não um domínio fictício.
+
+**Ainda falta do Sprint 7 (P0)**: página de exemplos dedicada, Termos de Uso + Política de Privacidade (LGPD), analytics de produto (eventos de cadastro/geração/exportação/assinatura).

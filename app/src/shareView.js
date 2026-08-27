@@ -49,7 +49,7 @@ export async function renderShareScreen(token) {
         </div>
       </header>
 
-      <p class="auth-subtitle disclaimer">Conteúdo gerado por IA — este é um rascunho compartilhado por ${profile?.nome_publico || "um corretor"}. Revise fatos, preço e disponibilidade antes de publicar.</p>
+      <p class="auth-subtitle disclaimer">Este é um rascunho de trabalho compartilhado por ${profile?.nome_publico || "um corretor"}. Revise fatos, preço e disponibilidade antes de publicar.</p>
 
       <div class="editor-pane">
         ${ASSET_ORDER.filter((t) => assetByType[t]).map((t) => `

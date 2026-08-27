@@ -627,7 +627,7 @@ function buildExportText(pkg, property) {
   const lines = [
     `# ${property.titulo_interno}`,
     "",
-    "_Conteúdo gerado por IA — revise fatos, preço, disponibilidade e fotos antes de publicar._",
+    "_Este é um rascunho de trabalho — revise fatos, preço, disponibilidade e fotos antes de publicar._",
     "",
   ];
   for (const type of ASSET_TYPES) {

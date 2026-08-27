@@ -81,7 +81,7 @@
 
 | Prioridade | Item | Critério de aceite |
 |---|---|---|
-| P0 | Landing page | Problema, demonstração, planos, FAQ e CTA. |
+| ✅ P0 | Landing page | Problema, demonstração, planos, FAQ e CTA — sem nenhuma menção a IA (decisão 2026-08-27). |
 | P0 | Página de exemplos | Exemplos fictícios claramente marcados como demonstração. |
 | P0 | Termos e privacidade | Páginas publicadas e revisadas. |
 | P0 | Analytics de produto | Eventos de cadastro, primeiro imóvel, geração, exportação e assinatura. |

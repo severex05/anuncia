@@ -273,7 +273,7 @@ export async function renderPackageEditorScreen(property, onBack) {
       <div class="profile-screen">
         <div class="profile-card">
           <h1 class="auth-title">Gerar pacote de lançamento</h1>
-          <p class="auth-subtitle">A IA usa os dados já cadastrados do imóvel e o seu perfil de voz. O resultado é sempre um rascunho — revise antes de publicar.</p>
+          <p class="auth-subtitle">Usamos os dados já cadastrados do imóvel e o seu perfil de voz. O resultado é sempre um rascunho — revise antes de publicar.</p>
 
           ${state.quota ? `<p class="field-hint">${quotaLabel(state.quota)}</p>` : ""}
 
@@ -396,7 +396,7 @@ export async function renderPackageEditorScreen(property, onBack) {
           </div>
         </header>
 
-        <p class="auth-subtitle disclaimer">Conteúdo gerado por IA — é sempre um rascunho. Revise fatos, preço, disponibilidade e fotos antes de publicar.</p>
+        <p class="auth-subtitle disclaimer">Este é sempre um rascunho de trabalho. Revise fatos, preço, disponibilidade e fotos antes de publicar.</p>
 
         ${renderWarnings()}
         ${renderShare()}

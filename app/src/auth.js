@@ -2,6 +2,10 @@ import { supabase } from "./supabaseClient.js";
 
 let mode = "login"; // "login" | "signup"
 
+export function setAuthMode(m) {
+  mode = m;
+}
+
 function translateAuthError(message) {
   const m = message.toLowerCase();
   if (m.includes("already") || m.includes("registered")) return "E-mail já cadastrado. Tente entrar.";

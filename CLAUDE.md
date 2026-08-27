@@ -34,7 +34,19 @@ cd server && npm install && npm run dev
 
 **Sprint 0, 1, 2, 3, 4 e 5 (P0) concluídos** — ver `BACKLOG.md`. Sprint 5 P1 (PDF, copiar formatado por canal) não implementado — deliberadamente adiado, não é bloqueante do MVP.
 
-Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI). Vercel: bloqueado por permissão do GitHub App (ver histórico da sessão 2026-08-25 — precisa liberar "anuncia" em github.com/settings/installations). Railway: ainda não conectado (MCP requer OAuth interativo).
+Supabase configurado por completo: projeto `anuncia`, schema aplicado, bucket `anuncia-logos` criado, `server/.env` com a secret key real. GitHub: repo `severex05/anuncia` criado e com push (autenticação via token pessoal, não `gh` CLI).
+
+## Infraestrutura de produção — AO VIVO (2026-08-27)
+
+- **Frontend (Vercel)**: https://anuncia-seven.vercel.app — projeto `anuncia` no time `severexs-projects`, conectado ao GitHub (`severex05/anuncia`, root directory `app`, framework Vite, auto-deploy a cada push na `main`). Variáveis: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (tipo Secret) e `VITE_BACKEND_URL` (tipo **Config**, não Secret — decisão deliberada pra poder verificar o valor depois de salvar, já que não é sensível: vira público no bundle de qualquer forma).
+- **Backend (Railway)**: https://anuncia-production-d02d.up.railway.app — projeto "carefree-encouragement" (nome aleatório do Railway), serviço "anuncia", conectado ao GitHub, root directory `/server`, auto-deploy a cada push na `main`. Variáveis: `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `ANTHROPIC_API_KEY`, `ADMIN_KEY`, `FRONTEND_URL` (= a URL do Vercel acima, pro CORS).
+- O GitHub App do Vercel e o do Railway já tinham "Todos os repositórios" liberado (a trava de permissão de sessões anteriores não existe mais — não precisou de ação do Álvaro).
+
+**Achado real durante o primeiro deploy do backend**: `server/ai.js` importava `../shared/constants.js` (fora da pasta `server/`) — funciona em dev local mas quebra em produção porque o Railway usa `server/` como raiz isolada (não inclui pastas irmãs). Corrigido criando `server/constants.js` como cópia própria (o cabeçalho do arquivo original já documentava esse padrão: "copiar manualmente, sem tooling de monorepo" — só o `ai.js` não seguia).
+
+**Achado real ao testar o app de verdade em produção pela primeira vez**: botão "Pular por agora" do onboarding travava o usuário num loop infinito na mesma tela — mandava `onboarding_completo:false` (deveria ser `true`) e o backend rejeitava com 400 quando só esse campo vinha na requisição (o guard de "nenhum campo válido" rodava antes de considerar `onboarding_completo`). O erro era engolido silenciosamente, então não tinha nenhuma pista visível do motivo. Corrigido nos dois lados, testado ao vivo em produção (cadastro → onboarding → pular → chegou no dashboard).
+
+**Armadilha de sessão (anotar pra próximas vezes)**: o navegador (Chrome/Edge com tradução automática ativa, locale pt-BR) reescreve nomes de variável de ambiente exibidos nos painéis do Vercel/Railway (ex: `VITE_BACKEND_URL` virou "URL_DE_ACKEND_VITE" na tela) — é só exibição, os dados reais salvos continuam corretos (confirmado via Raw Editor / test id), mas **o clique em "Save" de um formulário de edição pode falhar silenciosamente** sob esse efeito (aconteceu uma vez: variável nunca foi de fato atualizada, "Added" continuou com o timestamp original). Mitigação: `document.documentElement.setAttribute('translate', 'no')` + `meta[name=google][content=notranslate]` via `browser_evaluate` logo ao abrir qualquer painel de configuração antes de editar campos.
 
 Sprint 1 testado de ponta a ponta com usuário real (signup → GET/PUT `/api/profile` → upload de logo → `DELETE /api/account`, incluindo confirmação de que o token para de funcionar depois da exclusão): tudo passou.
 

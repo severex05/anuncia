@@ -6,7 +6,7 @@
 // TODOS os tipos de ativo pedidos, só o formato de cada item.
 
 const Anthropic = require("@anthropic-ai/sdk");
-const { ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES } = require("../shared/constants");
+const { ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES } = require("./constants");
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const REQUEST_TIMEOUT_MS = 45000;

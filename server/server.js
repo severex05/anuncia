@@ -62,11 +62,11 @@ app.put("/api/profile", requireAuth, async (req, res) => {
   for (const field of PROFILE_FIELDS) {
     if (req.body[field] !== undefined) updates[field] = req.body[field];
   }
-  if (Object.keys(updates).length === 0) {
-    return res.status(400).json({ error: "Nenhum campo válido enviado" });
-  }
   if (req.body.onboarding_completo !== undefined) {
     updates.onboarding_completo = !!req.body.onboarding_completo;
+  }
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ error: "Nenhum campo válido enviado" });
   }
   updates.updated_at = new Date().toISOString();
 

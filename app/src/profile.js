@@ -179,7 +179,7 @@ export async function renderProfileScreen(onSaved) {
 
   document.querySelector("#profile-skip").addEventListener("click", async () => {
     try {
-      await updateProfile({ onboarding_completo: false });
+      await updateProfile({ onboarding_completo: true });
     } catch (_) {
       /* pular mesmo se salvar falhar — não bloquear o usuário */
     }

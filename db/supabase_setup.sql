@@ -19,8 +19,7 @@ CREATE TABLE IF NOT EXISTS anuncia_professional_profiles (
   palavras_proibidas TEXT[] DEFAULT '{}',
   logo_url TEXT,
   cores JSONB DEFAULT '{}',
-  plan TEXT NOT NULL DEFAULT 'trial' CHECK (plan IN ('trial', 'solo', 'pro', 'equipe')),
-  stripe_customer_id TEXT,
+  cpf_cnpj TEXT DEFAULT '',           -- exigido pelo Asaas pra criar cliente de cobrança (Sprint 6)
   onboarding_completo BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -189,6 +188,12 @@ ALTER TABLE anuncia_usage_events ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Service role tem acesso total (usage)" ON anuncia_usage_events
   USING (true) WITH CHECK (true);
 CREATE INDEX IF NOT EXISTS idx_anuncia_usage_events_user ON anuncia_usage_events(user_id, tipo_evento, created_at);
+
+-- Sprint 6: professional_profiles.plan e .stripe_customer_id removidos —
+-- duplicavam anuncia_subscriptions (fonte única do plano) e citavam Stripe
+-- (decisão real foi Asaas, ver CLAUDE.md). Nunca usados em código.
+ALTER TABLE anuncia_professional_profiles DROP COLUMN IF EXISTS plan;
+ALTER TABLE anuncia_professional_profiles DROP COLUMN IF EXISTS stripe_customer_id;
 
 -- Assinatura (1:1 com usuário; workspace/membership ficam pro modo equipe, P2)
 CREATE TABLE IF NOT EXISTS anuncia_subscriptions (

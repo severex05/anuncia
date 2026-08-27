@@ -1,8 +1,18 @@
 import {
   generatePackage, listPackages, getPackage, updateChecklist,
   updateAsset, regenerateAsset, getAssetVersions, restoreAssetVersion,
-  exportPackage, createShareLink, revokeShareLink,
+  exportPackage, createShareLink, revokeShareLink, getSubscription,
 } from "./api.js";
+
+const PLAN_LABELS = { trial: "Teste grátis", solo: "Solo", pro: "Pro", equipe: "Equipe" };
+
+function quotaLabel(quota) {
+  if (!quota) return "";
+  const planoLabel = PLAN_LABELS[quota.plano] || quota.plano;
+  if (quota.limite === null) return `Plano ${planoLabel} — uso ilimitado`;
+  const cicloLabel = quota.ciclo === "mensal" ? "este mês" : "no total";
+  return `Plano ${planoLabel} — ${quota.usado}/${quota.limite} lançamentos ${cicloLabel}`;
+}
 
 const ASSET_LABELS = {
   long_description: "Descrição longa",
@@ -54,12 +64,22 @@ export async function renderPackageEditorScreen(property, onBack) {
     exporting: false,
     sharing: false,
     shareCopyLabel: "Copiar link",
+    quota: null,
   };
+
+  async function loadQuota() {
+    try {
+      state.quota = await getSubscription();
+    } catch {
+      state.quota = null; // não bloqueia a tela por causa disso
+    }
+  }
 
   async function load() {
     state.loading = true;
     render();
     try {
+      await loadQuota();
       state.packages = await listPackages(property.id);
       const latest = state.packages.find((p) => p.status === "concluido") || state.packages[0];
       state.pkg = latest ? await getPackage(latest.id) : null;
@@ -96,8 +116,16 @@ export async function renderPackageEditorScreen(property, onBack) {
       state.lastIdempotencyKey = null;
       syncDraft();
       state.packages = await listPackages(property.id);
+      await loadQuota();
     } catch (err) {
-      state.error = err.message + (err.message?.includes("tentar novamente") ? "" : "");
+      if (err.status === 402) {
+        if (err.data?.quota) state.quota = { ...state.quota, ...err.data.quota, permite_gerar: false };
+        state.error = err.data?.quota?.plano === "trial"
+          ? "Você já usou seu pacote grátis. Fale com a gente pra liberar mais lançamentos."
+          : "Limite de lançamentos do seu plano atingido este mês. Fale com a gente pra liberar mais.";
+      } else {
+        state.error = err.message;
+      }
     }
     state.generating = false;
     render();
@@ -247,6 +275,8 @@ export async function renderPackageEditorScreen(property, onBack) {
           <h1 class="auth-title">Gerar pacote de lançamento</h1>
           <p class="auth-subtitle">A IA usa os dados já cadastrados do imóvel e o seu perfil de voz. O resultado é sempre um rascunho — revise antes de publicar.</p>
 
+          ${state.quota ? `<p class="field-hint">${quotaLabel(state.quota)}</p>` : ""}
+
           <div class="checklist-list gen-types">
             ${ASSET_ORDER.map((t) => `
               <label class="checkbox-label">
@@ -263,7 +293,7 @@ export async function renderPackageEditorScreen(property, onBack) {
           ${state.error ? `<p class="auth-error">${state.error}</p>` : ""}
 
           <div class="profile-actions">
-            <button type="button" id="generate-btn" ${state.generating ? "disabled" : ""}>
+            <button type="button" id="generate-btn" ${state.generating || state.quota?.permite_gerar === false ? "disabled" : ""}>
               ${state.generating ? "Gerando... (pode levar até 30s)" : "Gerar pacote"}
             </button>
           </div>

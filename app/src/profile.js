@@ -81,6 +81,16 @@ export async function renderProfileScreen(onSaved) {
             </label>
           </div>
 
+          <div class="profile-row">
+            <label>Celular
+              <input type="text" id="p-celular" value="${contatos.telefone || ""}" placeholder="+55 11 90000-0000" />
+            </label>
+            <label>CPF ou CNPJ
+              <input type="text" id="p-cpf-cnpj" value="${profile.cpf_cnpj || ""}" placeholder="000.000.000-00" />
+            </label>
+          </div>
+          <p class="field-hint">Celular e CPF/CNPJ são necessários pra emitir cobrança quando você assinar um plano pago — não afetam o uso do plano grátis.</p>
+
           <label>Tom de voz
             <textarea id="p-tom" rows="2" placeholder="Ex: direto, caloroso, sempre termina com o WhatsApp">${profile.tom_de_voz || ""}</textarea>
           </label>
@@ -139,8 +149,13 @@ export async function renderProfileScreen(onSaved) {
       estado: document.querySelector("#p-estado").value.trim().toUpperCase(),
       cidade: document.querySelector("#p-cidade").value.trim(),
       imobiliaria: document.querySelector("#p-imobiliaria").value.trim(),
-      contatos: { ...contatos, whatsapp: document.querySelector("#p-whatsapp").value.trim() },
+      contatos: {
+        ...contatos,
+        whatsapp: document.querySelector("#p-whatsapp").value.trim(),
+        telefone: document.querySelector("#p-celular").value.trim(),
+      },
       redes_sociais: { ...redes, instagram: document.querySelector("#p-instagram").value.trim() },
+      cpf_cnpj: document.querySelector("#p-cpf-cnpj").value.trim(),
       tom_de_voz: document.querySelector("#p-tom").value.trim(),
       palavras_preferidas: document.querySelector("#p-preferidas").value.split(",").map((s) => s.trim()).filter(Boolean),
       palavras_proibidas: document.querySelector("#p-proibidas").value.split(",").map((s) => s.trim()).filter(Boolean),

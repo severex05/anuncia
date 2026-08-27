@@ -23,12 +23,17 @@ async function authedFetch(path, options = {}) {
       window.location.reload();
       return new Promise(() => {}); // nunca resolve — o reload já está a caminho
     }
-    throw new Error(data?.error || "Erro na requisição");
+    const error = new Error(data?.error || "Erro na requisição");
+    error.status = res.status;
+    error.data = data;
+    throw error;
   }
   return data;
 }
 
 export const getProfile = () => authedFetch("/api/profile");
+
+export const getSubscription = () => authedFetch("/api/subscription");
 
 export const updateProfile = (updates) =>
   authedFetch("/api/profile", { method: "PUT", body: JSON.stringify(updates) });

@@ -57,3 +57,26 @@ Sprint 5 (exportação e compartilhamento) implementado e testado de ponta a pon
 **Pendências conhecidas, não bloqueantes:**
 - Upload de logo não limpa o Storage quando a conta é excluída (cascade só cobre tabelas do Postgres, não objetos do bucket) — órfão pequeno, resolver quando o volume justificar.
 - Regeneração de ativo único não persiste os `warnings` retornados como `compliance_alerts` no banco (só aparecem na resposta imediata da regeneração) — os `global_warnings` do pacote inteiro (geração completa) persistem normalmente.
+- `PUT /api/profile` não aceita atualizar só `onboarding_completo` sozinho (precisa vir junto de outro campo de `PROFILE_FIELDS`, senão cai no guard de "nenhum campo válido" e retorna 400) — não afeta o fluxo real de onboarding (sempre envia o formulário inteiro junto), só pegou um teste manual isolado.
+- Não existe tela pra editar o perfil depois do onboarding completo — dashboard não tem link "editar perfil" (só existe a rota inicial, condicionada a `onboarding_completo=false`). P1.
+
+## Decisão de trial (2026-08-27)
+**1 pacote completo grátis**, sem cartão, sem prazo — não trial por tempo. Corretor não avalia o produto sem ver um pacote de verdade gerado, e limitar por quantidade (não por dias) protege o custo de IA desde o primeiro usuário.
+
+## Sprint 6 (Monetização) — P0 implementado e testado de ponta a ponta (2026-08-27)
+
+Backend novo: `server/billing.js` (`PLAN_LIMITS`, `getOrCreateSubscription`, `checkGenerationQuota` — desacoplado de propósito do provedor: `anuncia_subscriptions` guarda `plano`/`status` em termos genéricos, o único campo específico de provedor é `provider_id`, reservado pro Asaas no P1). Limites: trial = 1 pacote (vitalício), Solo = 10/mês, Pro = 25/mês (calendário UTC, não ciclo de cobrança real ainda — isso só vem com o Asaas no P1).
+
+`POST /api/properties/:id/generate` agora checa cota antes de gerar (não bloqueia replay nem retry após erro, só geração nova de verdade) — retorna 402 com `{error, quota: {plano, usado, limite, ciclo}}` quando estourado. `GET /api/subscription` expõe o mesmo dado pro frontend mostrar o uso.
+
+Sem checkout real ainda (Asaas fica pro P1) — troca de plano manual via `PUT /api/admin/subscriptions/:userId` protegido por `ADMIN_KEY` (header `x-admin-key`, mesmo padrão do VYRON/IRYON), pra pilotos pagos ou testes até o checkout existir.
+
+**Coleta de dados pro Asaas** (lembrete do Álvaro): cliente do Asaas exige CPF/CNPJ, e cobrança pode ir por WhatsApp — perfil profissional ganhou os campos `cpf_cnpj` e `contatos.telefone` (celular, separado do WhatsApp de conteúdo). E-mail não precisou de campo novo: já vem do Supabase Auth (`req.userEmail` no backend).
+
+**Testado de ponta a ponta**, curl + navegador real (Playwright): usuário novo → perfil com CPF/celular salvos → 1ª geração funciona e consome o pacote grátis → `GET /api/subscription` mostra `1/1, permite_gerar:false` → 2ª geração bloqueada com 402 → endpoint admin sem chave dá 403, com chave dá 200 e muda pra Solo → geração volta a funcionar (`0/10` na visão do ciclo mensal, badge "Plano Solo — X/10 lançamentos este mês" aparece certinho no formulário de geração). Banco de teste limpo depois (cascade cobrindo `anuncia_subscriptions` também, confirmado).
+
+Migrações aplicadas: `sprint6_remove_dead_plan_columns` (removeu `professional_profiles.plan`/`stripe_customer_id`, mortos desde o Sprint 0 e duplicando/confundindo com `anuncia_subscriptions` + decisão real de usar Asaas), `sprint6_cpf_cnpj_perfil`.
+
+**Limitação conhecida, não bloqueante**: o contador mensal (Solo/Pro) conta por calendário UTC, não por ciclo de assinatura real — então um upgrade de trial pra Solo no mesmo mês carrega a geração do trial pro contador do Solo. Fica resolvido quando o Asaas popular `periodo_atual_inicio`/`fim` de verdade no P1.
+
+**Ainda falta (P1, não é bloqueio do P0)**: checkout real + webhook do Asaas, portal do assinante, página de preços.

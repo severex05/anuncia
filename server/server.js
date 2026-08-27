@@ -4,6 +4,7 @@ const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
 const { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES } = require("./ai");
+const { PLAN_LIMITS, getOrCreateSubscription, checkGenerationQuota } = require("./billing");
 
 const app = express();
 // exposedHeaders: sem isso o fetch() do frontend não consegue ler
@@ -43,7 +44,7 @@ app.get("/api/health", (_, res) => res.json({ status: "ok", uptime: process.upti
 const PROFILE_FIELDS = [
   "nome_publico", "creci", "estado", "cidade", "imobiliaria",
   "contatos", "redes_sociais", "tom_de_voz", "exemplos_voz",
-  "palavras_preferidas", "palavras_proibidas", "cores",
+  "palavras_preferidas", "palavras_proibidas", "cores", "cpf_cnpj",
 ];
 
 app.get("/api/profile", requireAuth, async (req, res) => {
@@ -311,6 +312,19 @@ app.post("/api/properties/:id/generate", requireAuth, async (req, res) => {
   }
   if (existing?.status === "gerando") {
     return res.status(409).json({ error: "Geração já em andamento para esta chave, aguarde", retryable: true });
+  }
+
+  // Chegou até aqui = vai consumir cota de verdade (geração nova ou retry
+  // após erro — retry não é bloqueado por cota porque a tentativa que falhou
+  // nunca gravou anuncia_usage_events).
+  const quota = await checkGenerationQuota(supabase, req.userId);
+  if (!quota.allowed) {
+    return res.status(402).json({
+      error: quota.reason === "assinatura_inativa"
+        ? "Assinatura inativa ou com pagamento atrasado."
+        : "Limite de lançamentos do seu plano atingido.",
+      quota: { plano: quota.subscription.plano, usado: quota.usado, limite: quota.limite, ciclo: quota.ciclo },
+    });
   }
 
   let packageRow = existing; // status 'erro' → reaproveita a linha pra retry
@@ -729,6 +743,67 @@ app.delete("/api/account", requireAuth, async (req, res) => {
     return res.status(500).json({ error: "Erro ao excluir conta" });
   }
   res.json({ sucesso: true });
+});
+
+// ── Sprint 6: assinatura e limites de plano ─────────────────────────────────
+
+app.get("/api/subscription", requireAuth, async (req, res) => {
+  try {
+    const quota = await checkGenerationQuota(supabase, req.userId);
+    res.json({
+      plano: quota.subscription.plano,
+      status: quota.subscription.status,
+      limite: quota.limite,
+      usado: quota.usado,
+      ciclo: quota.ciclo,
+      permite_gerar: quota.allowed,
+    });
+  } catch (err) {
+    console.error("[subscription/get]", err.message);
+    res.status(500).json({ error: "Erro ao buscar assinatura" });
+  }
+});
+
+// Sem checkout real ainda (Asaas fica pro P1) — troca de plano manual até lá,
+// pra pilotos pagos ou testes. Mesmo padrão de ADMIN_KEY do VYRON/IRYON.
+function requireAdmin(req, res, next) {
+  const key = req.headers["x-admin-key"];
+  if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {
+    return res.status(403).json({ error: "Acesso negado" });
+  }
+  next();
+}
+
+const SUBSCRIPTION_STATUSES = ["trialing", "active", "past_due", "canceled"];
+
+app.put("/api/admin/subscriptions/:userId", requireAdmin, async (req, res) => {
+  const { plano, status } = req.body || {};
+  if (plano && !Object.keys(PLAN_LIMITS).includes(plano)) {
+    return res.status(400).json({ error: `plano inválido: ${plano}` });
+  }
+  if (status && !SUBSCRIPTION_STATUSES.includes(status)) {
+    return res.status(400).json({ error: `status inválido: ${status}` });
+  }
+  if (!plano && !status) {
+    return res.status(400).json({ error: "Envie plano e/ou status" });
+  }
+
+  await getOrCreateSubscription(supabase, req.params.userId);
+  const updates = { updated_at: new Date().toISOString() };
+  if (plano) updates.plano = plano;
+  if (status) updates.status = status;
+
+  const { data, error } = await supabase
+    .from("anuncia_subscriptions")
+    .update(updates)
+    .eq("user_id", req.params.userId)
+    .select()
+    .maybeSingle();
+  if (error) {
+    console.error("[admin/subscriptions]", error.message);
+    return res.status(500).json({ error: "Erro ao atualizar assinatura" });
+  }
+  res.json(data);
 });
 
 const PORT = process.env.PORT || 3001;

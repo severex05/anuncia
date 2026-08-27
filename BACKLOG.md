@@ -69,11 +69,11 @@
 
 | Prioridade | Item | Critério de aceite |
 |---|---|---|
-| P0 | Plano de teste | Limite de uso aplicado no backend. |
-| P0 | Plano Solo R$97 | Status e acesso associados ao usuário. |
-| P0 | Plano Pro R$147 | Recursos e limites diferentes funcionando. |
-| P0 | Abstração de billing | Provider pode ser trocado sem refazer domínio. |
-| P1 | Checkout real | Pagamento de teste e webhook processados. |
+| ✅ P0 | Plano de teste | Limite de uso aplicado no backend — 1 pacote grátis, vitalício, sem cartão (decisão 2026-08-27). |
+| ✅ P0 | Plano Solo R$97 | Status e acesso associados ao usuário — 10 lançamentos/mês. |
+| ✅ P0 | Plano Pro R$147 | Recursos e limites diferentes funcionando — 25 lançamentos/mês. |
+| ✅ P0 | Abstração de billing | Provider pode ser trocado sem refazer domínio — `anuncia_subscriptions` genérico, `provider_id` isolado. |
+| P1 | Checkout real | Pagamento de teste e webhook processados (Asaas — CPF/CNPJ e celular já coletados no perfil). |
 | P1 | Portal do assinante | Cancelar, consultar plano e status. |
 | P1 | Página de preços | Comparação simples, honesta e responsiva. |
 

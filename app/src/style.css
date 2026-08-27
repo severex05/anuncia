@@ -261,6 +261,12 @@ body {
   gap: 20px;
 }
 
+.field-hint {
+  margin: -8px 0 20px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
 input[type="text"],
 input[type="email"],
 input[type="password"],

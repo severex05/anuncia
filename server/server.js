@@ -3,7 +3,7 @@ const crypto = require("crypto");
 const express = require("express");
 const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
-const { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES } = require("./ai");
+const { generateLaunchPackage, regenerateAsset, parsePropertyText, GenerationError, ASSET_TYPES } = require("./ai");
 const { PLAN_LIMITS, getOrCreateSubscription, checkGenerationQuota } = require("./billing");
 
 const app = express();
@@ -130,6 +130,9 @@ const PROPERTY_FIELDS = [
   "dormitorios", "suites", "banheiros", "vagas", "andar", "mobiliado",
   "caracteristicas", "diferenciais", "estado_conservacao", "descricao_entorno",
   "regras", "observacoes",
+  // Uso interno do corretor — nunca sai em material gerado (ver server/ai.js
+  // stripInternalFields, que remove esse campo antes de qualquer chamada de IA).
+  "valor_minimo_negociacao",
 ];
 const PROPERTY_STATUS = ["rascunho", "gerado", "revisando", "aprovado", "arquivado"];
 
@@ -143,7 +146,7 @@ function validateProperty(body, { partial } = { partial: false }) {
     errors.push("titulo_interno é obrigatório");
   }
 
-  for (const f of ["preco", "condominio", "iptu", "area_total", "area_privativa"]) {
+  for (const f of ["preco", "condominio", "iptu", "area_total", "area_privativa", "valor_minimo_negociacao"]) {
     if (has(f) && (typeof body[f] !== "number" || body[f] < 0)) {
       errors.push(`${f} precisa ser um número >= 0`);
     }
@@ -194,6 +197,23 @@ app.get("/api/properties/:id", requireAuth, async (req, res) => {
   if (error) return res.status(500).json({ error: "Erro ao buscar imóvel" });
   if (!data) return res.status(404).json({ error: "Imóvel não encontrado" });
   res.json(data);
+});
+
+// Roadmap NOW: atalho de preenchimento — reorganiza texto que o corretor já
+// escreveu em campos estruturados pra ele revisar. Não conta pra cota de
+// geração (não é conteúdo final, é ajuda de entrada de dado).
+app.post("/api/properties/parse-text", requireAuth, async (req, res) => {
+  const texto = String(req.body?.texto || "").trim();
+  if (!texto) return res.status(400).json({ error: "Envie o campo texto" });
+  if (texto.length > 2000) return res.status(400).json({ error: "Texto muito longo (máximo 2000 caracteres)" });
+
+  try {
+    const { fields } = await parsePropertyText({ texto });
+    res.json({ fields });
+  } catch (err) {
+    console.error("[properties/parse-text]", err.message);
+    res.status(502).json({ error: "Não foi possível organizar o texto agora. Tente de novo ou preencha manualmente." });
+  }
 });
 
 app.post("/api/properties", requireAuth, async (req, res) => {

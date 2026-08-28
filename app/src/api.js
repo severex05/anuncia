@@ -57,6 +57,9 @@ export const listProperties = (params = {}) => {
 
 export const getProperty = (id) => authedFetch(`/api/properties/${id}`);
 
+export const quickFillProperty = (texto) =>
+  authedFetch("/api/properties/parse-text", { method: "POST", body: JSON.stringify({ texto }) });
+
 export const createProperty = (fields) =>
   authedFetch("/api/properties", { method: "POST", body: JSON.stringify(fields) });
 

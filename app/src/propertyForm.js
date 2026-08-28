@@ -1,4 +1,4 @@
-import { createProperty, updateProperty } from "./api.js";
+import { createProperty, updateProperty, quickFillProperty } from "./api.js";
 
 const STEPS = ["Básicas", "Ambientes", "Localização", "Diferenciais", "Revisão"];
 
@@ -28,6 +28,7 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
     step: 0,
     saving: false,
     error: "",
+    quickFill: { open: !isEdit, texto: "", loading: false, message: "" },
     f: {
       titulo_interno: existing?.titulo_interno || "",
       tipo: existing?.tipo || "",
@@ -36,6 +37,7 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
       preco: existing?.preco ?? "",
       condominio: existing?.condominio ?? "",
       iptu: existing?.iptu ?? "",
+      valor_minimo_negociacao: existing?.valor_minimo_negociacao ?? "",
       area_total: existing?.area_total ?? "",
       area_privativa: existing?.area_privativa ?? "",
       dormitorios: existing?.dormitorios ?? "",
@@ -66,6 +68,7 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
       preco: toNum(f.preco),
       condominio: toNum(f.condominio),
       iptu: toNum(f.iptu),
+      valor_minimo_negociacao: toNum(f.valor_minimo_negociacao),
       area_total: toNum(f.area_total),
       area_privativa: toNum(f.area_privativa),
       dormitorios: toInt(f.dormitorios),
@@ -107,6 +110,19 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
     switch (state.step) {
       case 0:
         return `
+          ${state.quickFill.open ? `
+            <div class="warnings-panel quick-fill">
+              <p class="warnings-title">Atalho</p>
+              <label>Descreva o imóvel em uma frase — a gente organiza os campos abaixo pra você revisar
+                <textarea id="quick-fill-text" rows="2" placeholder="Ex: Apto 2 quartos reformado na Vila Madalena, 65m², vaga, R$ 480 mil">${state.quickFill.texto}</textarea>
+              </label>
+              <div class="quick-fill-actions">
+                <button type="button" id="quick-fill-run" class="btn-secondary" ${state.quickFill.loading ? "disabled" : ""}>${state.quickFill.loading ? "Organizando..." : "Organizar campos"}</button>
+                <button type="button" id="quick-fill-hide" class="link-btn">ocultar atalho</button>
+              </div>
+              ${state.quickFill.message ? `<p class="auth-error ${state.quickFill.messageType === "error" ? "" : "auth-info"}">${state.quickFill.message}</p>` : ""}
+            </div>
+          ` : ""}
           <label>Título interno (só pra você identificar)
             <input type="text" data-f="titulo_interno" value="${f.titulo_interno}" placeholder="Apto Vila Madalena 2Q reformado" required />
           </label>
@@ -143,6 +159,10 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
               <input type="number" min="0" data-f="iptu" value="${f.iptu}" />
             </label>
           </div>
+          <label>Valor mínimo aceito pelo proprietário (R$) — opcional
+            <input type="number" min="0" data-f="valor_minimo_negociacao" value="${f.valor_minimo_negociacao}" />
+          </label>
+          <p class="field-hint">Uso interno seu, só pra negociação — nunca aparece nos materiais gerados nem em nenhum lugar público.</p>
         `;
       case 1:
         return `
@@ -224,6 +244,7 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
             <li>R$ ${p.preco ?? "—"} ${p.condominio ? `+ cond. R$ ${p.condominio}` : ""}</li>
             <li>${p.area_privativa ?? "—"}m² · ${p.dormitorios ?? "—"} dorm · ${p.suites ?? "—"} suítes · ${p.vagas ?? "—"} vagas</li>
             <li>${p.bairro || "—"}, ${p.cidade || "—"}</li>
+            ${p.valor_minimo_negociacao ? `<li>Mínimo interno: R$ ${p.valor_minimo_negociacao} <span class="field-hint" style="margin:0;display:inline;">(não aparece nos materiais)</span></li>` : ""}
           </ul>
         `;
       }
@@ -274,6 +295,41 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
         state.f[field] = el.type === "checkbox" ? el.checked : el.value;
       });
     });
+
+    if (state.step === 0 && state.quickFill.open) {
+      document.querySelector("#quick-fill-text").addEventListener("input", (e) => {
+        state.quickFill.texto = e.target.value;
+      });
+      document.querySelector("#quick-fill-hide").addEventListener("click", () => {
+        state.quickFill.open = false;
+        render();
+      });
+      document.querySelector("#quick-fill-run").addEventListener("click", async () => {
+        const texto = state.quickFill.texto.trim();
+        if (!texto) return;
+        state.quickFill.loading = true;
+        state.quickFill.message = "";
+        render();
+        try {
+          const { fields } = await quickFillProperty(texto);
+          const applied = [];
+          for (const [key, value] of Object.entries(fields || {})) {
+            if (!(key in state.f) || value === undefined || value === null) continue;
+            state.f[key] = Array.isArray(value) ? value.join(", ") : value;
+            applied.push(key);
+          }
+          state.quickFill.message = applied.length
+            ? "Campos organizados — confira antes de continuar."
+            : "Não consegui identificar campos nesse texto. Preencha manualmente abaixo.";
+          state.quickFill.messageType = "success";
+        } catch (err) {
+          state.quickFill.message = err.message;
+          state.quickFill.messageType = "error";
+        }
+        state.quickFill.loading = false;
+        render();
+      });
+    }
 
     document.querySelector("#cancel-btn").addEventListener("click", onCancel);
     if (canGoBack) {

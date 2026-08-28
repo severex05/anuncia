@@ -30,4 +30,11 @@ const PROPERTY_STATUS = ["rascunho", "gerado", "revisando", "aprovado", "arquiva
 
 const PLANS = ["trial", "solo", "pro", "equipe"];
 
-module.exports = { ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES, PROPERTY_STATUS, PLANS };
+const PROPERTY_TIPOS = ["apartamento", "casa", "terreno", "comercial", "rural"];
+const PROPERTY_FINALIDADES = ["residencial", "comercial", "misto"];
+const PROPERTY_OPERACOES = ["venda", "aluguel"];
+
+module.exports = {
+  ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES, PROPERTY_STATUS, PLANS,
+  PROPERTY_TIPOS, PROPERTY_FINALIDADES, PROPERTY_OPERACOES,
+};

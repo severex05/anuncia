@@ -210,3 +210,8 @@ CREATE POLICY "Dono vê a própria assinatura" ON anuncia_subscriptions
   FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Service role tem acesso total (subscriptions)" ON anuncia_subscriptions
   USING (true) WITH CHECK (true);
+
+-- Roadmap NOW (2026-08-28): campo interno de negociação — só o corretor vê,
+-- NUNCA deve ser incluído no prompt de geração de conteúdo (ver server/ai.js,
+-- que remove esse campo explicitamente do objeto enviado à IA).
+ALTER TABLE anuncia_properties ADD COLUMN IF NOT EXISTS valor_minimo_negociacao NUMERIC;

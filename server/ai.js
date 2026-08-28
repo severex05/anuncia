@@ -6,7 +6,21 @@
 // TODOS os tipos de ativo pedidos, só o formato de cada item.
 
 const Anthropic = require("@anthropic-ai/sdk");
-const { ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES } = require("./constants");
+const { ASSET_TYPES, ALERT_CATEGORIES, ALERT_SEVERITIES, PROPERTY_TIPOS, PROPERTY_FINALIDADES, PROPERTY_OPERACOES } = require("./constants");
+
+// Campos que NUNCA podem ser enviados à IA — nem pra gerar conteúdo, nem pra
+// extrair dados de texto livre. valor_minimo_negociacao é uso interno do
+// corretor (ver db/supabase_setup.sql); jamais deve aparecer num material
+// gerado nem influenciar o texto.
+function stripInternalFields(property) {
+  const clean = { ...property };
+  delete clean.id;
+  delete clean.user_id;
+  delete clean.created_at;
+  delete clean.updated_at;
+  delete clean.valor_minimo_negociacao;
+  return clean;
+}
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-haiku-4-5-20251001";
 const REQUEST_TIMEOUT_MS = 45000;
@@ -101,11 +115,7 @@ function buildUserMessage({ profile, property, assetTypes, instruction }) {
     palavras_proibidas: profile?.palavras_proibidas || [],
   };
 
-  const imovel = { ...property };
-  delete imovel.id;
-  delete imovel.user_id;
-  delete imovel.created_at;
-  delete imovel.updated_at;
+  const imovel = stripInternalFields(property);
 
   const partes = [
     `Perfil do corretor:\n${JSON.stringify(perfilResumo, null, 2)}`,
@@ -186,7 +196,7 @@ function generateMock({ profile, property, assetTypes }) {
     type,
     title: base[type]?.split("\n")[0]?.slice(0, 80) || titulo,
     content: base[type] || `[${type}] conteúdo de exemplo — modo mock`,
-    source_fields: Object.keys(property).filter((k) => property[k] !== null && property[k] !== undefined && property[k] !== ""),
+    source_fields: Object.keys(stripInternalFields(property)).filter((k) => property[k] !== null && property[k] !== undefined && property[k] !== ""),
     warnings: [],
   }));
 
@@ -287,8 +297,7 @@ async function regenerateAsset({ profile, property, assetType, currentContent, i
     palavras_preferidas: profile?.palavras_preferidas || [],
     palavras_proibidas: profile?.palavras_proibidas || [],
   };
-  const imovel = { ...property };
-  delete imovel.id; delete imovel.user_id; delete imovel.created_at; delete imovel.updated_at;
+  const imovel = stripInternalFields(property);
 
   const userMessage = [
     `Ativo a revisar: ${assetType}`,
@@ -320,4 +329,96 @@ async function regenerateAsset({ profile, property, assetType, currentContent, i
   return { ...toolUse.input, modelo_usado: MODEL };
 }
 
-module.exports = { generateLaunchPackage, regenerateAsset, GenerationError, ASSET_TYPES };
+// Roadmap NOW: atalho de preenchimento — o corretor cola uma frase solta
+// (ex: "apto 2 quartos reformado na Vila Madalena, 65m², vaga, R$480 mil") e
+// isso vira campos estruturados pra ele revisar no formulário. Diferente da
+// geração de conteúdo: não produz material final, só reorganiza texto que o
+// próprio corretor já escreveu — por isso o tom "só preencha o que está
+// explícito" é ainda mais rígido aqui do que na geração normal.
+
+const PARSE_TOOL = {
+  name: "extrair_dados_imovel",
+  description: "Extrai os dados estruturados de um imóvel a partir de uma descrição em texto livre.",
+  input_schema: {
+    type: "object",
+    properties: {
+      titulo_interno: { type: "string", description: "Um título curto pra identificar o imóvel internamente, só se o texto sugerir um (ex: apelido do imóvel). Não invente um genérico." },
+      tipo: { type: "string", enum: PROPERTY_TIPOS, description: "Tipo do imóvel." },
+      finalidade: { type: "string", enum: PROPERTY_FINALIDADES, description: "Finalidade: residencial, comercial ou misto." },
+      operacao: { type: "string", enum: PROPERTY_OPERACOES, description: "Se é pra vender (venda) ou alugar (aluguel)." },
+      preco: { type: "number", description: "Valor de venda ou aluguel em reais, sem símbolo." },
+      condominio: { type: "number", description: "Valor do condomínio mensal em reais." },
+      iptu: { type: "number", description: "Valor do IPTU em reais." },
+      area_total: { type: "number", description: "Área/metragem do imóvel em m² — use quando o texto disser só 'm²' sem especificar se é privativa." },
+      area_privativa: { type: "number", description: "Área privativa em m², só se o texto distinguir explicitamente de área total/comum." },
+      dormitorios: { type: "integer", description: "Número de quartos/dormitórios." },
+      suites: { type: "integer", description: "Número de suítes." },
+      banheiros: { type: "integer", description: "Número de banheiros." },
+      vagas: { type: "integer", description: "Número de vagas de garagem." },
+      andar: { type: "string", description: "Andar do imóvel, ex: '5º andar'." },
+      mobiliado: { type: "boolean", description: "Se o texto disser que é mobiliado/decorado." },
+      cidade: { type: "string", description: "Cidade onde o imóvel está localizado." },
+      bairro: { type: "string", description: "Bairro onde o imóvel está localizado." },
+      endereco_publico: { type: "string", description: "Endereço (rua/avenida) se mencionado explicitamente." },
+      caracteristicas: { type: "array", items: { type: "string" }, description: "Comodidades objetivas mencionadas: varanda, academia, portaria 24h, piscina, elevador, etc." },
+      diferenciais: { type: "array", items: { type: "string" }, description: "Diferenciais mencionados: reformado, vista livre, esquina, nascente, etc." },
+      estado_conservacao: { type: "string", description: "Estado de conservação, ex: 'reformado', 'novo', 'usado', se mencionado." },
+    },
+  },
+};
+
+const PARSE_SYSTEM_PROMPT = `Você extrai dados estruturados de imóveis a partir de uma descrição em texto livre escrita por um corretor brasileiro, para pré-preencher um formulário que ele vai revisar e corrigir manualmente antes de salvar.
+
+Regras absolutas:
+- Preencha SOMENTE os campos que estão clara e explicitamente presentes no texto.
+- Nunca invente, estime, arredonde ou infira um valor que não foi dito.
+- Números: extraia só o valor numérico (sem "R$", sem "m²", sem separador de milhar).
+- Se o texto não permitir extrair nenhum campo com confiança, chame a ferramenta sem nenhuma propriedade preenchida.
+
+Responda sempre chamando a ferramenta extrair_dados_imovel.`;
+
+function parseMock(texto) {
+  const fields = {};
+  const preco = texto.match(/R\$\s?([\d.,]+)\s?(mil|k)?/i);
+  if (preco) {
+    let n = Number(preco[1].replace(/\./g, "").replace(",", "."));
+    if (/mil|k/i.test(preco[2] || "")) n *= 1000;
+    if (!Number.isNaN(n)) fields.preco = n;
+  }
+  const area = texto.match(/(\d+)\s?m²/i);
+  if (area) fields.area_total = Number(area[1]);
+  const dorm = texto.match(/(\d+)\s?(quartos?|dormit[óo]rios?|dorms?)/i);
+  if (dorm) fields.dormitorios = parseInt(dorm[1], 10);
+  const vagas = texto.match(/(\d+)\s?vagas?/i);
+  if (vagas) fields.vagas = parseInt(vagas[1], 10);
+  for (const t of PROPERTY_TIPOS) if (new RegExp(t, "i").test(texto)) { fields.tipo = t; break; }
+  for (const o of PROPERTY_OPERACOES) if (new RegExp(o, "i").test(texto)) { fields.operacao = o; break; }
+  return fields;
+}
+
+async function parsePropertyText({ texto }) {
+  if (!anthropic) {
+    return { fields: parseMock(texto), modelo_usado: "mock" };
+  }
+
+  let response;
+  try {
+    response = await anthropic.messages.create({
+      model: MODEL,
+      max_tokens: 1024,
+      system: PARSE_SYSTEM_PROMPT,
+      messages: [{ role: "user", content: texto }],
+      tools: [PARSE_TOOL],
+      tool_choice: { type: "tool", name: PARSE_TOOL.name },
+    }, { timeout: 20000 });
+  } catch (err) {
+    console.error("[ai/parse]", err.message);
+    throw new GenerationError("Provedor de IA indisponível ou timeout", { retryable: true });
+  }
+
+  const toolUse = response.content?.find((b) => b.type === "tool_use");
+  if (!toolUse) throw new GenerationError("Não foi possível organizar o texto", { retryable: true });
+  return { fields: toolUse.input || {}, modelo_usado: MODEL };
+}
+
+module.exports = { generateLaunchPackage, regenerateAsset, parsePropertyText, GenerationError, ASSET_TYPES };

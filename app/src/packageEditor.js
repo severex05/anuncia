@@ -34,6 +34,12 @@ function uuid() {
   return crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
 function checklistLines(content) {
   return (content || "")
     .split("\n")
@@ -343,6 +349,26 @@ export async function renderPackageEditorScreen(property, onBack) {
     `;
   }
 
+  const POST_PREVIEW_TYPES = ["instagram", "facebook", "whatsapp"];
+
+  function renderPostPreview() {
+    if (!POST_PREVIEW_TYPES.includes(state.activeType)) return "";
+    const capa = property.media?.[0];
+    return `
+      <div class="post-preview">
+        <p class="warnings-title">Pronto pra postar</p>
+        ${capa
+          ? `
+            <div class="post-preview-card">
+              <div class="post-preview-photo" style="background: url('${capa.url}') center/cover no-repeat;"></div>
+              <p class="post-preview-text">${escapeHtml(state.draftContent)}</p>
+            </div>
+          `
+          : `<p class="field-hint">Adicione uma foto de capa no imóvel (aba Básicas, editar imóvel) pra ver a prévia com imagem.</p>`}
+      </div>
+    `;
+  }
+
   function renderHistory() {
     if (!state.showHistory) return "";
     if (!state.history) return `<p class="auth-subtitle">Carregando histórico...</p>`;
@@ -415,6 +441,8 @@ export async function renderPackageEditorScreen(property, onBack) {
             <button type="button" id="save-btn" ${!state.dirty || state.saving ? "disabled" : ""}>${state.saving ? "Salvando..." : "Salvar edição"}</button>
             <button type="button" id="history-btn" class="btn-secondary">${state.showHistory ? "Ocultar histórico" : "Ver histórico"}</button>
           </div>
+
+          ${renderPostPreview()}
 
           <div class="regen-panel">
             <p class="auth-subtitle">Regenerar com instrução rápida</p>
@@ -493,6 +521,10 @@ export async function renderPackageEditorScreen(property, onBack) {
       state.draftContent = e.target.value;
       state.dirty = true;
       document.querySelector("#save-btn").disabled = false;
+      // Atualiza só o texto da prévia (sem render() completo) pra não perder
+      // o cursor/foco do usuário no meio da digitação.
+      const previewText = document.querySelector(".post-preview-text");
+      if (previewText) previewText.textContent = state.draftContent;
     });
 
     document.querySelector("#copy-btn").addEventListener("click", copyActive);

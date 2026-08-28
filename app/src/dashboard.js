@@ -77,7 +77,7 @@ async function renderList(filters) {
 function renderCard(p) {
   return `
     <div class="property-card" data-id="${p.id}">
-      <div class="property-card-photo">
+      <div class="property-card-photo" ${p.capa_url ? `style="background: url('${p.capa_url}') center/cover no-repeat;"` : ""}>
         <span class="property-status status-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
       </div>
       <div class="property-card-main">

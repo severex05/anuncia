@@ -1,4 +1,13 @@
-import { createProperty, updateProperty, quickFillProperty } from "./api.js";
+import { createProperty, updateProperty, quickFillProperty, uploadPropertyMedia, deletePropertyMedia } from "./api.js";
+
+function fileToBase64(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result.split(",")[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
 
 const STEPS = ["Básicas", "Ambientes", "Localização", "Diferenciais", "Revisão"];
 
@@ -29,6 +38,9 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
     saving: false,
     error: "",
     quickFill: { open: !isEdit, texto: "", loading: false, message: "" },
+    media: existing?.media || [],
+    mediaUploading: false,
+    mediaError: "",
     f: {
       titulo_interno: existing?.titulo_interno || "",
       tipo: existing?.tipo || "",
@@ -163,6 +175,28 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
             <input type="number" min="0" data-f="valor_minimo_negociacao" value="${f.valor_minimo_negociacao}" />
           </label>
           <p class="field-hint">Uso interno seu, só pra negociação — nunca aparece nos materiais gerados nem em nenhum lugar público.</p>
+
+          ${isEdit ? `
+            <div class="foto-section">
+              <p class="warnings-title">Fotos</p>
+              <div class="foto-capa" ${state.media[0] ? `style="background: url('${state.media[0].url}') center/cover no-repeat;"` : ""}>
+                ${state.media[0] ? "" : `<span class="foto-capa-label serif">Foto de capa</span>`}
+              </div>
+              <div class="foto-rail">
+                <label class="foto-frame foto-frame-add ${state.mediaUploading ? "foto-frame-loading" : ""}">
+                  ${state.mediaUploading ? "…" : "+"}
+                  <input type="file" id="foto-input" accept="image/png,image/jpeg,image/webp" hidden ${state.mediaUploading ? "disabled" : ""} />
+                </label>
+                ${state.media.map((m) => `
+                  <div class="foto-frame">
+                    <img src="${m.url}" alt="" />
+                    <button type="button" class="foto-remove" data-media-id="${m.id}" aria-label="Excluir foto">×</button>
+                  </div>
+                `).join("")}
+              </div>
+              ${state.mediaError ? `<p class="auth-error">${state.mediaError}</p>` : ""}
+            </div>
+          ` : `<p class="field-hint">Salve o imóvel (rascunho ou completo) pra poder adicionar fotos.</p>`}
         `;
       case 1:
         return `
@@ -328,6 +362,43 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
         }
         state.quickFill.loading = false;
         render();
+      });
+    }
+
+    if (state.step === 0 && isEdit) {
+      document.querySelector("#foto-input").addEventListener("change", async (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        if (file.size > 5 * 1024 * 1024) {
+          state.mediaError = "Foto maior que 5MB.";
+          render();
+          return;
+        }
+        state.mediaUploading = true;
+        state.mediaError = "";
+        render();
+        try {
+          const base64 = await fileToBase64(file);
+          const media = await uploadPropertyMedia(existing.id, base64, file.type);
+          state.media.push(media);
+        } catch (err) {
+          state.mediaError = `Erro ao enviar foto: ${err.message}`;
+        }
+        state.mediaUploading = false;
+        render();
+      });
+      document.querySelectorAll(".foto-remove").forEach((btn) => {
+        btn.addEventListener("click", async () => {
+          const mediaId = btn.dataset.mediaId;
+          try {
+            await deletePropertyMedia(mediaId);
+            state.media = state.media.filter((m) => m.id !== mediaId);
+            render();
+          } catch (err) {
+            state.mediaError = `Erro ao excluir foto: ${err.message}`;
+            render();
+          }
+        });
       });
     }
 

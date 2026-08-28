@@ -68,6 +68,14 @@ export const updateProperty = (id, fields) =>
 
 export const duplicateProperty = (id) => authedFetch(`/api/properties/${id}/duplicate`, { method: "POST" });
 
+export const uploadPropertyMedia = (propertyId, fotoBase64, mimeType) =>
+  authedFetch(`/api/properties/${propertyId}/media`, {
+    method: "POST",
+    body: JSON.stringify({ fotoBase64, mimeType }),
+  });
+
+export const deletePropertyMedia = (mediaId) => authedFetch(`/api/media/${mediaId}`, { method: "DELETE" });
+
 export const deleteProperty = (id) => authedFetch(`/api/properties/${id}`, { method: "DELETE" });
 
 export const generatePackage = (propertyId, { idempotencyKey, assetTypes, instruction }) =>

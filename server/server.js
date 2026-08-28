@@ -184,6 +184,23 @@ app.get("/api/properties", requireAuth, async (req, res) => {
 
   const { data, error } = await query;
   if (error) return res.status(500).json({ error: "Erro ao listar imóveis" });
+
+  // capa_url = foto de menor "ordem" de cada imóvel (a primeira enviada,
+  // até existir reordenação de verdade) — 1 query só pra lista inteira.
+  const ids = data.map((p) => p.id);
+  if (ids.length) {
+    const { data: media } = await supabase
+      .from("anuncia_property_media")
+      .select("property_id, url, ordem")
+      .in("property_id", ids)
+      .order("ordem", { ascending: true });
+    const capaByProperty = {};
+    for (const m of media || []) {
+      if (!(m.property_id in capaByProperty)) capaByProperty[m.property_id] = m.url;
+    }
+    for (const p of data) p.capa_url = capaByProperty[p.id] || null;
+  }
+
   res.json(data);
 });
 
@@ -196,6 +213,14 @@ app.get("/api/properties/:id", requireAuth, async (req, res) => {
     .maybeSingle();
   if (error) return res.status(500).json({ error: "Erro ao buscar imóvel" });
   if (!data) return res.status(404).json({ error: "Imóvel não encontrado" });
+
+  const { data: media } = await supabase
+    .from("anuncia_property_media")
+    .select("*")
+    .eq("property_id", data.id)
+    .order("ordem", { ascending: true });
+  data.media = media || [];
+
   res.json(data);
 });
 
@@ -290,6 +315,71 @@ app.delete("/api/properties/:id", requireAuth, async (req, res) => {
     .eq("user_id", req.userId);
   if (error) return res.status(500).json({ error: "Erro ao excluir imóvel" });
   if (!count) return res.status(404).json({ error: "Imóvel não encontrado" });
+  res.json({ sucesso: true });
+});
+
+// ── Roadmap NOW: fotos do imóvel (foto de capa = menor "ordem") ────────────
+
+const MEDIA_MAX_BYTES = 5 * 1024 * 1024;
+const MEDIA_ALLOWED_MIME = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+const MEDIA_BUCKET = "anuncia-property-photos";
+
+app.post("/api/properties/:id/media", requireAuth, async (req, res) => {
+  const property = await fetchOwnedProperty(req.params.id, req.userId);
+  if (!property) return res.status(404).json({ error: "Imóvel não encontrado" });
+
+  const { fotoBase64, mimeType } = req.body || {};
+  const ext = MEDIA_ALLOWED_MIME[mimeType];
+  if (!fotoBase64 || !ext) {
+    return res.status(400).json({ error: "Envie fotoBase64 + mimeType (png, jpeg ou webp)" });
+  }
+  const buffer = Buffer.from(fotoBase64, "base64");
+  if (buffer.length > MEDIA_MAX_BYTES) {
+    return res.status(400).json({ error: "Foto maior que 5MB" });
+  }
+
+  const { count } = await supabase
+    .from("anuncia_property_media")
+    .select("id", { count: "exact", head: true })
+    .eq("property_id", property.id);
+  const ordem = count || 0;
+  const path = `${req.userId}/${property.id}/${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadError } = await supabase.storage.from(MEDIA_BUCKET).upload(path, buffer, { contentType: mimeType });
+  if (uploadError) {
+    console.error("[properties/media/upload]", uploadError.message);
+    return res.status(500).json({ error: "Erro ao enviar foto" });
+  }
+
+  const { data: publicUrlData } = supabase.storage.from(MEDIA_BUCKET).getPublicUrl(path);
+
+  const { data, error } = await supabase
+    .from("anuncia_property_media")
+    .insert({ property_id: property.id, url: publicUrlData.publicUrl, ordem, tipo: "foto" })
+    .select()
+    .single();
+  if (error) {
+    console.error("[properties/media/insert]", error.message);
+    return res.status(500).json({ error: "Foto enviada, mas falhou ao salvar" });
+  }
+  res.status(201).json(data);
+});
+
+app.delete("/api/media/:id", requireAuth, async (req, res) => {
+  const { data: media } = await supabase
+    .from("anuncia_property_media")
+    .select("id, url, property_id, anuncia_properties!inner(user_id)")
+    .eq("id", req.params.id)
+    .maybeSingle();
+  if (!media || media.anuncia_properties.user_id !== req.userId) {
+    return res.status(404).json({ error: "Foto não encontrada" });
+  }
+
+  const path = media.url.split(`/${MEDIA_BUCKET}/`)[1];
+  if (path) await supabase.storage.from(MEDIA_BUCKET).remove([path]).catch(() => {});
+
+  const { error } = await supabase.from("anuncia_property_media").delete().eq("id", req.params.id);
+  if (error) return res.status(500).json({ error: "Erro ao excluir foto" });
   res.json({ sucesso: true });
 });
 

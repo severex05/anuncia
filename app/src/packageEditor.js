@@ -138,8 +138,8 @@ export async function renderPackageEditorScreen(property, onBack) {
       if (err.status === 402) {
         if (err.data?.quota) state.quota = { ...state.quota, ...err.data.quota, permite_gerar: false };
         state.error = err.data?.quota?.plano === "trial"
-          ? "Você já usou seu pacote grátis. Fale com a gente pra liberar mais lançamentos."
-          : "Limite de lançamentos do seu plano atingido este mês. Fale com a gente pra liberar mais.";
+          ? 'Você já usou seu pacote grátis. <a href="/plano">Assine um plano</a> pra continuar lançando.'
+          : 'Limite de lançamentos do seu plano atingido este mês. <a href="/plano">Veja os planos</a> pra liberar mais.';
       } else {
         state.error = err.message;
       }

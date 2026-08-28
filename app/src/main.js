@@ -2,6 +2,7 @@ import { supabase } from "./supabaseClient.js";
 import { renderAuthScreen, setAuthMode } from "./auth.js";
 import { renderProfileScreen } from "./profile.js";
 import { renderDashboardScreen } from "./dashboard.js";
+import { renderBillingScreen } from "./billing.js";
 import { renderShareScreen } from "./shareView.js";
 import { renderLandingScreen } from "./landing.js";
 import { renderTermsScreen, renderPrivacyScreen } from "./legal.js";
@@ -69,6 +70,11 @@ async function route() {
 
   if (!profile?.onboarding_completo) {
     renderProfileScreen(route);
+    return;
+  }
+
+  if (window.location.pathname === "/plano") {
+    renderBillingScreen(goBack);
     return;
   }
 

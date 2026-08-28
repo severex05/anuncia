@@ -100,7 +100,8 @@ body {
   text-decoration: none;
 }
 
-.topbar button {
+.topbar button,
+.topbar a {
   font-family: var(--font-sans);
   background: none;
   border: 1px solid rgba(246, 241, 231, 0.3);
@@ -109,9 +110,13 @@ body {
   border-radius: var(--radius-sm);
   font-size: 0.82rem;
   cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
 }
 
-.topbar button:hover {
+.topbar button:hover,
+.topbar a:hover {
   border-color: var(--gold-light);
   color: var(--gold-light);
 }
@@ -447,6 +452,12 @@ button {
 
 .auth-error.auth-info {
   color: var(--success);
+}
+
+.auth-error a {
+  color: inherit;
+  font-weight: 700;
+  text-decoration: underline;
 }
 
 .profile-logo-row {

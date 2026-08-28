@@ -5,6 +5,7 @@ const cors = require("cors");
 const { createClient } = require("@supabase/supabase-js");
 const { generateLaunchPackage, regenerateAsset, parsePropertyText, GenerationError, ASSET_TYPES } = require("./ai");
 const { PLAN_LIMITS, getOrCreateSubscription, checkGenerationQuota } = require("./billing");
+const { asaasRequest, isValidCpfCnpj, enableWhatsAppNotifications, ASAAS_PLANOS, planoPorValor } = require("./asaas");
 
 const app = express();
 // exposedHeaders: sem isso o fetch() do frontend não consegue ler
@@ -21,6 +22,15 @@ if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
   supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 } else {
   console.warn("[SUPABASE] SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY não configuradas — rotas autenticadas vão falhar até serem definidas no Railway.");
+}
+
+// ASAAS_API_KEY / ASAAS_WEBHOOK_TOKEN não entram como obrigatórias no boot —
+// até serem definidas no Railway, as rotas de pagamento falham sozinhas (sem
+// chave pra chamar a Asaas, webhook compara contra undefined e sempre
+// rejeita) em vez de derrubar o processo inteiro. Gerar/editar/exportar
+// pacote precisa continuar funcionando mesmo sem billing configurado.
+if (!process.env.ASAAS_API_KEY || !process.env.ASAAS_WEBHOOK_TOKEN) {
+  console.warn("[ASAAS] ASAAS_API_KEY / ASAAS_WEBHOOK_TOKEN não configuradas — checkout e webhook vão falhar até serem definidas no Railway.");
 }
 
 // Auth — padrão IRYON (Supabase Auth puro, sem JWT próprio). Ver CLAUDE.md.
@@ -901,8 +911,208 @@ app.get("/api/subscription", requireAuth, async (req, res) => {
   }
 });
 
-// Sem checkout real ainda (Asaas fica pro P1) — troca de plano manual até lá,
-// pra pilotos pagos ou testes. Mesmo padrão de ADMIN_KEY do VYRON/IRYON.
+// ── Sprint 6 P1: checkout real Asaas ────────────────────────────────────────
+// Mesmo padrão do IRYON/VYRON (ver server/asaas.js) — customer 1:1 por
+// usuário, assinatura recorrente com billingType UNDEFINED (paga escolhe
+// PIX/boleto/cartão na página hospedada da Asaas), status só muda de verdade
+// quando o webhook confirmar o primeiro pagamento.
+
+// Rate limit simples em memória (processo único no Railway) — protege contra
+// checkout em loop gerando customer/subscription à toa na Asaas.
+const checkoutAttempts = new Map();
+function checkCheckoutLimit(userId) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const attempts = (checkoutAttempts.get(userId) || []).filter((t) => now - t < windowMs);
+  if (attempts.length >= 5) return false;
+  attempts.push(now);
+  checkoutAttempts.set(userId, attempts);
+  return true;
+}
+
+app.post("/api/asaas/create-checkout", requireAuth, async (req, res) => {
+  if (!process.env.ASAAS_API_KEY) return res.status(503).json({ error: "Pagamento não configurado no momento." });
+  if (!checkCheckoutLimit(req.userId)) return res.status(429).json({ error: "Muitas tentativas de checkout. Aguarde alguns minutos." });
+
+  const { plano, cpfCnpj } = req.body || {};
+  const planConfig = ASAAS_PLANOS[plano];
+  if (!planConfig) return res.status(400).json({ error: `plano inválido: ${plano}` });
+
+  const { data: profile } = await supabase
+    .from("anuncia_professional_profiles")
+    .select("nome_publico, cpf_cnpj, contatos")
+    .eq("id", req.userId)
+    .maybeSingle();
+
+  const cpfCnpjDigits = String(cpfCnpj || profile?.cpf_cnpj || "").replace(/\D/g, "");
+  if (!isValidCpfCnpj(cpfCnpjDigits)) {
+    return res.status(400).json({ error: "CPF ou CNPJ inválido — necessário pra emitir cobrança.", code: "cpf_required" });
+  }
+
+  const subscription = await getOrCreateSubscription(supabase, req.userId);
+
+  try {
+    let asaasCustomerId = subscription.asaas_customer_id;
+    const customerPayload = {
+      name: profile?.nome_publico || req.userEmail.split("@")[0],
+      email: req.userEmail,
+      cpfCnpj: cpfCnpjDigits,
+      externalReference: req.userEmail,
+      notificationDisabled: false,
+    };
+    if (profile?.contatos?.telefone) customerPayload.mobilePhone = profile.contatos.telefone;
+
+    if (!asaasCustomerId) {
+      const customer = await asaasRequest("POST", "/customers", customerPayload);
+      asaasCustomerId = customer.id;
+      await enableWhatsAppNotifications(asaasCustomerId);
+    } else {
+      // já existe customer (checkout anterior, ou troca de plano) — mantém
+      // CPF/telefone atualizados sem recriar.
+      await asaasRequest("POST", `/customers/${asaasCustomerId}`, {
+        cpfCnpj: cpfCnpjDigits,
+        ...(profile?.contatos?.telefone ? { mobilePhone: profile.contatos.telefone } : {}),
+      }).catch(() => {}); // best-effort, não deve travar o checkout
+    }
+
+    const hoje = new Date().toISOString().slice(0, 10);
+    const sub = await asaasRequest("POST", "/subscriptions", {
+      customer: asaasCustomerId,
+      billingType: "UNDEFINED",
+      value: planConfig.valor,
+      nextDueDate: hoje,
+      cycle: planConfig.cycle,
+      description: `Anuncia ${planConfig.nome}`,
+      externalReference: req.userEmail,
+      interest: { value: 1 }, // juros de mora 1%/mês (limite legal, art. 52 §1º CDC)
+    });
+
+    let paymentUrl = null;
+    try {
+      const payments = await asaasRequest("GET", `/subscriptions/${sub.id}/payments?limit=1`);
+      paymentUrl = payments.data?.[0]?.invoiceUrl || null;
+    } catch (e) {
+      console.warn("[ASAAS CHECKOUT] Não foi possível buscar invoiceUrl:", e.message);
+    }
+
+    // Status permanece o atual até o webhook confirmar o pagamento — só
+    // guarda o vínculo com a Asaas pra saber ativar a assinatura certa.
+    await supabase
+      .from("anuncia_subscriptions")
+      .update({ asaas_customer_id: asaasCustomerId, provider_id: sub.id, updated_at: new Date().toISOString() })
+      .eq("user_id", req.userId);
+
+    res.json({ url: paymentUrl || `${process.env.FRONTEND_URL || ""}/plano` });
+  } catch (err) {
+    console.error("[asaas/create-checkout]", err.message);
+    res.status(502).json({ error: "Não foi possível iniciar o checkout agora. Tente novamente." });
+  }
+});
+
+function safeCompare(a, b) {
+  if (typeof a !== "string" || typeof b !== "string") return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  if (bufA.length !== bufB.length) return false;
+  return crypto.timingSafeEqual(bufA, bufB);
+}
+
+app.post("/api/asaas/webhook", async (req, res) => {
+  const token = req.headers["asaas-access-token"];
+  if (!process.env.ASAAS_WEBHOOK_TOKEN || !safeCompare(token, process.env.ASAAS_WEBHOOK_TOKEN)) {
+    console.error("[ASAAS Webhook] Token inválido");
+    return res.status(401).json({ error: "Token inválido." });
+  }
+
+  const { event, payment } = req.body || {};
+  const subscriptionId = payment?.subscription;
+
+  try {
+    switch (event) {
+      case "PAYMENT_CONFIRMED":
+      case "PAYMENT_RECEIVED": {
+        if (!subscriptionId) break;
+        const { data: row } = await supabase
+          .from("anuncia_subscriptions")
+          .select("*")
+          .eq("provider_id", subscriptionId)
+          .maybeSingle();
+        if (!row) { console.warn("[ASAAS Webhook] assinatura não encontrada localmente:", subscriptionId); break; }
+
+        let subscriptionEnd = null;
+        let plano = row.plano;
+        try {
+          const sub = await asaasRequest("GET", `/subscriptions/${subscriptionId}`);
+          if (sub?.nextDueDate) subscriptionEnd = new Date(`${sub.nextDueDate}T00:00:00Z`);
+          plano = planoPorValor(sub.value) || plano;
+        } catch (e) {
+          console.warn("[ASAAS Webhook] falha ao buscar assinatura:", e.message);
+        }
+        if (!subscriptionEnd) {
+          subscriptionEnd = new Date();
+          subscriptionEnd.setUTCMonth(subscriptionEnd.getUTCMonth() + 1);
+        }
+
+        await supabase
+          .from("anuncia_subscriptions")
+          .update({
+            plano,
+            status: "active",
+            periodo_atual_inicio: new Date().toISOString(),
+            periodo_atual_fim: subscriptionEnd.toISOString(),
+            updated_at: new Date().toISOString(),
+          })
+          .eq("provider_id", subscriptionId);
+
+        await supabase.from("anuncia_usage_events").insert({
+          user_id: row.user_id,
+          tipo_evento: "assinatura",
+          metadata: { plano, status: "active", via: "asaas_webhook", event },
+        });
+        break;
+      }
+
+      case "PAYMENT_OVERDUE": {
+        if (!subscriptionId) break;
+        // Rebaixa o acesso enquanto a cobrança não é regularizada (a Asaas
+        // continua tentando cobrar automaticamente) — evita Pro/Solo com
+        // acesso indefinido em atraso até a Asaas desistir e disparar
+        // SUBSCRIPTION_INACTIVATED.
+        await supabase
+          .from("anuncia_subscriptions")
+          .update({ status: "past_due", updated_at: new Date().toISOString() })
+          .eq("provider_id", subscriptionId);
+        break;
+      }
+
+      case "SUBSCRIPTION_INACTIVATED": {
+        if (!subscriptionId) break;
+        await supabase
+          .from("anuncia_subscriptions")
+          .update({ status: "canceled", updated_at: new Date().toISOString() })
+          .eq("provider_id", subscriptionId);
+        break;
+      }
+
+      case "PAYMENT_REFUNDED":
+        // subscription pode ainda estar ativa na Asaas — aguarda
+        // SUBSCRIPTION_INACTIVATED se for o caso, não mexe no status aqui.
+        console.log("[ASAAS Webhook] PAYMENT_REFUNDED recebido:", subscriptionId);
+        break;
+
+      default:
+        console.log("[ASAAS Webhook] evento ignorado:", event);
+    }
+    res.json({ received: true });
+  } catch (err) {
+    console.error("[asaas/webhook]", err.message);
+    res.status(500).json({ error: "Erro ao processar webhook" });
+  }
+});
+
+// Sem checkout real: troca de plano manual — pra pilotos pagos, testes, ou
+// override do que o checkout já resolveu automaticamente. Mesmo padrão de
+// ADMIN_KEY do VYRON/IRYON.
 function requireAdmin(req, res, next) {
   const key = req.headers["x-admin-key"];
   if (!process.env.ADMIN_KEY || key !== process.env.ADMIN_KEY) {

@@ -215,3 +215,8 @@ CREATE POLICY "Service role tem acesso total (subscriptions)" ON anuncia_subscri
 -- NUNCA deve ser incluído no prompt de geração de conteúdo (ver server/ai.js,
 -- que remove esse campo explicitamente do objeto enviado à IA).
 ALTER TABLE anuncia_properties ADD COLUMN IF NOT EXISTS valor_minimo_negociacao NUMERIC;
+
+-- Sprint 6 P1 (2026-08-28): checkout real Asaas — id do cliente Asaas (1:1 por
+-- usuário), pra não recriar customer a cada checkout. provider_id (já existia)
+-- guarda o id da assinatura Asaas.
+ALTER TABLE anuncia_subscriptions ADD COLUMN IF NOT EXISTS asaas_customer_id TEXT;

@@ -35,6 +35,9 @@ export const getProfile = () => authedFetch("/api/profile");
 
 export const getSubscription = () => authedFetch("/api/subscription");
 
+export const createAsaasCheckout = (plano, cpfCnpj) =>
+  authedFetch("/api/asaas/create-checkout", { method: "POST", body: JSON.stringify({ plano, cpfCnpj }) });
+
 // Best-effort: não deve travar o cadastro se a sessão ainda não existir
 // (ex: confirmação de e-mail pendente) ou se a chamada falhar por qualquer motivo.
 export const logSignupEvent = () => authedFetch("/api/events/signup", { method: "POST" }).catch(() => {});

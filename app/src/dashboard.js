@@ -20,7 +20,10 @@ async function renderList(filters) {
   app.innerHTML = `
     <header class="topbar">
       <span class="wordmark serif">Anuncia</span>
-      <button type="button" id="logout-btn">Sair</button>
+      <div style="display: flex; gap: 10px;">
+        <a href="/plano">Meu plano</a>
+        <button type="button" id="logout-btn">Sair</button>
+      </div>
     </header>
     <div class="dashboard">
       <header class="dashboard-header">

@@ -29,6 +29,8 @@ async function renderList(filters) {
         </div>
       </header>
 
+      <div id="onboarding-block"></div>
+
       <div class="dashboard-toolbar">
         <input type="text" id="search-input" placeholder="Buscar por título, cidade ou bairro" value="${filters.q}" />
         <select id="status-filter">
@@ -69,9 +71,37 @@ async function renderList(filters) {
       ? properties.map(renderCard).join("")
       : `<p class="auth-subtitle">Nenhum imóvel encontrado. Clique em "+ Novo imóvel" pra começar.</p>`;
     wireCardActions(listEl, filters);
+
+    // "Comece por aqui" some sozinho assim que o corretor já gerou 1 pacote —
+    // não é dispensável manualmente, é condicionado ao estado real dos dados.
+    const jaGerouPacote = properties.some((p) => p.status !== "rascunho");
+    document.querySelector("#onboarding-block").innerHTML = jaGerouPacote ? "" : renderOnboarding();
   } catch (err) {
     listEl.innerHTML = `<p class="auth-error">Erro ao carregar imóveis: ${err.message}</p>`;
   }
+}
+
+function renderOnboarding() {
+  const steps = [
+    { title: "Cadastre seu primeiro imóvel", text: "Preencha os dados básicos — ou cole um texto solto e deixe a gente organizar os campos pra você." },
+    { title: "Gere o pacote completo", text: "Descrição, Instagram, WhatsApp e mais 6 materiais prontos pra revisar, em segundos." },
+    { title: "Revise e publique", text: "Ajuste o que quiser, copie e publique no seu canal preferido." },
+  ];
+  return `
+    <div class="getting-started">
+      <h2 class="auth-title" style="font-size: 1.4rem; margin-bottom: 4px;">Comece por aqui</h2>
+      <p class="auth-subtitle" style="margin-bottom: 0;">Três passos até o primeiro pacote de lançamento pronto.</p>
+      <div class="getting-started-steps">
+        ${steps.map((s, i) => `
+          <div class="getting-started-step">
+            <p class="diff-num">${String(i + 1).padStart(2, "0")}</p>
+            <h3>${s.title}</h3>
+            <p>${s.text}</p>
+          </div>
+        `).join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderCard(p) {

@@ -261,6 +261,55 @@ body {
   gap: 20px;
 }
 
+.field-label-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.mic-btn {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid var(--border-strong);
+  background: var(--surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}
+
+.mic-btn:hover {
+  border-color: var(--gold-deep);
+}
+
+.mic-btn.mic-active {
+  background: var(--gold);
+  border-color: var(--gold);
+  animation: mic-pulse 1s ease-in-out infinite;
+}
+
+.mic-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { scale: 1; }
+  50% { scale: 1.15; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mic-btn.mic-active {
+    animation: none;
+  }
+}
+
 .field-hint {
   margin: -8px 0 20px;
   font-size: 13px;
@@ -569,6 +618,35 @@ button {
 
 .dashboard-toolbar #new-property-btn:hover {
   background: var(--gold-light);
+}
+
+.getting-started {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 30px;
+  margin-bottom: 32px;
+}
+
+.getting-started-steps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-top: 20px;
+}
+
+.getting-started-step h3 {
+  font-weight: 700;
+  color: var(--ink);
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.getting-started-step p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.5;
+  margin: 0;
 }
 
 .properties-list {
@@ -978,6 +1056,26 @@ button {
   }
 }
 
+.visual-piece {
+  margin: 20px 0;
+}
+
+.visual-piece-canvas {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  aspect-ratio: 1080 / 1350;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(12, 23, 41, 0.12);
+  background: var(--paper-deep);
+}
+
+.visual-piece-actions {
+  margin-top: 12px;
+}
+
 .regen-panel {
   margin-top: 20px;
 }
@@ -1077,7 +1175,163 @@ button {
   gap: 10px;
 }
 
-/* ── Página pública de compartilhamento ──────────────────────────────────── */
+/* ── Mini-site público do imóvel (Roadmap Next) ──────────────────────────── */
+
+.mini-site {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 0 0 60px;
+  width: 100%;
+}
+
+.mini-hero {
+  min-height: 60vh;
+  background-size: cover;
+  background-position: center;
+  background-color: var(--ink);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 28px 6vw 40px;
+}
+
+.mini-hero::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(12, 23, 41, 0.55) 0%, rgba(12, 23, 41, 0.15) 35%, rgba(12, 23, 41, 0.92) 100%);
+}
+
+.mini-hero-empty {
+  background: linear-gradient(165deg, var(--ink) 0%, #16283f 55%, var(--ink) 100%);
+}
+
+.mini-hero-wordmark {
+  position: relative;
+  font-size: 1.4rem;
+  color: var(--gold-light);
+}
+
+.mini-hero-copy {
+  position: relative;
+}
+
+.mini-hero-copy .hero-eyebrow {
+  margin-bottom: 10px;
+}
+
+.mini-hero-copy h1 {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-weight: 400;
+  font-size: clamp(1.8rem, 4vw, 2.6rem);
+  color: var(--paper);
+  margin: 0 0 12px;
+  line-height: 1.2;
+}
+
+.mini-hero-facts {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-family: var(--font-sans);
+  color: rgba(246, 241, 231, 0.85);
+  font-size: 1rem;
+}
+
+.mini-hero-price {
+  font-family: var(--font-display);
+  font-style: italic;
+  font-size: 1.6rem;
+  color: var(--gold-light);
+}
+
+.mini-specs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 20px 6vw;
+  background: var(--surface-paper);
+  border-bottom: 1px solid var(--border);
+}
+
+.mini-specs span {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 6px 14px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.mini-gallery {
+  display: flex;
+  gap: 8px;
+  padding: 16px 6vw;
+  overflow-x: auto;
+}
+
+.mini-gallery-item {
+  flex-shrink: 0;
+  width: 140px;
+  height: 100px;
+  border-radius: var(--radius-sm);
+  background-size: cover;
+  background-position: center;
+  background-color: var(--paper-deep);
+}
+
+.mini-body {
+  padding: 32px 6vw 8px;
+}
+
+.mini-body .share-content {
+  margin: 0;
+}
+
+.mini-contact {
+  margin: 24px 6vw 0;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+}
+
+.mini-contact .btn-cta {
+  text-decoration: none;
+  display: inline-block;
+}
+
+.mini-more {
+  margin: 28px 6vw 0;
+}
+
+.mini-more summary {
+  cursor: pointer;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--gold-deep);
+}
+
+.mini-more-pane {
+  margin-top: 16px;
+}
+
+.mini-fineprint {
+  margin: 32px 6vw 0;
+  text-align: left;
+}
+
+@media (max-width: 600px) {
+  .mini-hero {
+    min-height: 46vh;
+  }
+}
+
+/* ── Página pública de compartilhamento (assets brutos, dentro do <details> acima) ── */
 
 .share-asset {
   margin-bottom: 24px;

@@ -9,6 +9,57 @@ function fileToBase64(file) {
   });
 }
 
+// Ditado por voz (Roadmap Next) — Web Speech API nativa, sem serviço externo.
+// Suporte real hoje é Chrome/Edge; Firefox/Safari não implementam
+// SpeechRecognition, então os botões ficam desabilitados graciosamente.
+function speechSupported() {
+  return "SpeechRecognition" in window || "webkitSpeechRecognition" in window;
+}
+
+function startRecognition(onResult, onEnd) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const rec = new SR();
+  rec.lang = "pt-BR";
+  rec.interimResults = false;
+  rec.maxAlternatives = 1;
+  rec.onresult = (e) => onResult(Array.from(e.results).map((r) => r[0].transcript).join(" "));
+  rec.onend = onEnd;
+  rec.onerror = onEnd;
+  rec.start();
+  return rec;
+}
+
+// Delegado nos botões [data-mic-target] a cada render() — dita direto no
+// campo alvo e dispara "input" nele, reaproveitando os listeners de
+// state.f/quick-fill que já existem (sem precisar de wiring duplicado).
+function wireMicButtons() {
+  const buttons = document.querySelectorAll("[data-mic-target]");
+  if (!buttons.length) return;
+  if (!speechSupported()) {
+    buttons.forEach((btn) => {
+      btn.disabled = true;
+      btn.title = "Ditado por voz não é compatível com este navegador";
+    });
+    return;
+  }
+  buttons.forEach((btn) => {
+    let rec = null;
+    btn.addEventListener("click", () => {
+      const el = document.getElementById(btn.dataset.micTarget);
+      if (!el) return;
+      if (rec) { rec.stop(); return; }
+      btn.classList.add("mic-active");
+      rec = startRecognition(
+        (transcript) => {
+          el.value = el.value.trim() ? `${el.value.trim()} ${transcript}` : transcript;
+          el.dispatchEvent(new Event("input", { bubbles: true }));
+        },
+        () => { rec = null; btn.classList.remove("mic-active"); }
+      );
+    });
+  });
+}
+
 const STEPS = ["Básicas", "Ambientes", "Localização", "Diferenciais", "Revisão"];
 
 const TIPOS = ["apartamento", "casa", "terreno", "comercial", "rural"];
@@ -125,7 +176,11 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
           ${state.quickFill.open ? `
             <div class="warnings-panel quick-fill">
               <p class="warnings-title">Atalho</p>
-              <label>Descreva o imóvel em uma frase — a gente organiza os campos abaixo pra você revisar
+              <label>
+                <span class="field-label-row">
+                  Descreva o imóvel em uma frase — a gente organiza os campos abaixo pra você revisar
+                  <button type="button" class="mic-btn" data-mic-target="quick-fill-text" title="Ditar por voz">🎤</button>
+                </span>
                 <textarea id="quick-fill-text" rows="2" placeholder="Ex: Apto 2 quartos reformado na Vila Madalena, 65m², vaga, R$ 480 mil">${state.quickFill.texto}</textarea>
               </label>
               <div class="quick-fill-actions">
@@ -258,14 +313,22 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
           <label>Estado de conservação
             <input type="text" data-f="estado_conservacao" value="${f.estado_conservacao}" placeholder="reformado, novo, usado" />
           </label>
-          <label>Descrição do entorno
-            <textarea data-f="descricao_entorno" rows="2">${f.descricao_entorno}</textarea>
+          <label>
+            <span class="field-label-row">
+              Descrição do entorno
+              <button type="button" class="mic-btn" data-mic-target="descricao_entorno" title="Ditar por voz">🎤</button>
+            </span>
+            <textarea id="descricao_entorno" data-f="descricao_entorno" rows="2">${f.descricao_entorno}</textarea>
           </label>
           <label>Regras do imóvel
             <input type="text" data-f="regras" value="${f.regras}" />
           </label>
-          <label>Observações
-            <textarea data-f="observacoes" rows="2">${f.observacoes}</textarea>
+          <label>
+            <span class="field-label-row">
+              Observações
+              <button type="button" class="mic-btn" data-mic-target="observacoes" title="Ditar por voz">🎤</button>
+            </span>
+            <textarea id="observacoes" data-f="observacoes" rows="2">${f.observacoes}</textarea>
           </label>
         `;
       case 4: {
@@ -401,6 +464,8 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
         });
       });
     }
+
+    wireMicButtons();
 
     document.querySelector("#cancel-btn").addEventListener("click", onCancel);
     if (canGoBack) {

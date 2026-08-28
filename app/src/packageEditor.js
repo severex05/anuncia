@@ -1,8 +1,9 @@
 import {
   generatePackage, listPackages, getPackage, updateChecklist,
   updateAsset, regenerateAsset, getAssetVersions, restoreAssetVersion,
-  exportPackage, createShareLink, revokeShareLink, getSubscription,
+  exportPackage, createShareLink, revokeShareLink, getSubscription, getProfile,
 } from "./api.js";
+import { renderVisualPiece, downloadCanvas } from "./visualPiece.js";
 
 const PLAN_LABELS = { trial: "Teste grátis", solo: "Solo", pro: "Pro", equipe: "Equipe" };
 
@@ -71,6 +72,7 @@ export async function renderPackageEditorScreen(property, onBack) {
     sharing: false,
     shareCopyLabel: "Copiar link",
     quota: null,
+    profile: null,
   };
 
   async function loadQuota() {
@@ -81,11 +83,20 @@ export async function renderPackageEditorScreen(property, onBack) {
     }
   }
 
+  async function loadProfile() {
+    try {
+      state.profile = await getProfile();
+    } catch {
+      state.profile = null; // peça visual funciona sem rodapé de corretor
+    }
+  }
+
   async function load() {
     state.loading = true;
     render();
     try {
       await loadQuota();
+      await loadProfile();
       state.packages = await listPackages(property.id);
       const latest = state.packages.find((p) => p.status === "concluido") || state.packages[0];
       state.pkg = latest ? await getPackage(latest.id) : null;
@@ -369,6 +380,20 @@ export async function renderPackageEditorScreen(property, onBack) {
     `;
   }
 
+  function renderVisualPieceSection() {
+    if (!POST_PREVIEW_TYPES.includes(state.activeType)) return "";
+    if (!property.media?.length) return "";
+    return `
+      <div class="visual-piece">
+        <p class="warnings-title">Peça visual pronta pra postar</p>
+        <canvas id="visual-piece-canvas" class="visual-piece-canvas"></canvas>
+        <div class="visual-piece-actions">
+          <button type="button" id="visual-piece-download-btn" class="btn-secondary" disabled>Baixar imagem</button>
+        </div>
+      </div>
+    `;
+  }
+
   function renderHistory() {
     if (!state.showHistory) return "";
     if (!state.history) return `<p class="auth-subtitle">Carregando histórico...</p>`;
@@ -443,6 +468,7 @@ export async function renderPackageEditorScreen(property, onBack) {
           </div>
 
           ${renderPostPreview()}
+          ${renderVisualPieceSection()}
 
           <div class="regen-panel">
             <p class="auth-subtitle">Regenerar com instrução rápida</p>
@@ -546,6 +572,24 @@ export async function renderPackageEditorScreen(property, onBack) {
     document.querySelectorAll("[data-checklist-idx]").forEach((el) => {
       el.addEventListener("change", () => toggleChecklistItem(el.dataset.checklistIdx, el.checked));
     });
+
+    const visualCanvas = document.querySelector("#visual-piece-canvas");
+    if (visualCanvas) {
+      const downloadBtn = document.querySelector("#visual-piece-download-btn");
+      renderVisualPiece(visualCanvas, { property, profile: state.profile })
+        .then(() => { downloadBtn.disabled = false; })
+        .catch((err) => {
+          console.error("[visual-piece]", err.message);
+          const p = document.createElement("p");
+          p.className = "auth-error";
+          p.textContent = "Não foi possível gerar a peça visual agora.";
+          visualCanvas.insertAdjacentElement("afterend", p);
+        });
+      downloadBtn.addEventListener("click", () => {
+        const filename = `anuncia-${(property.titulo_interno || "imovel").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
+        downloadCanvas(visualCanvas, filename);
+      });
+    }
   }
 
   await load();

@@ -858,8 +858,16 @@ app.get("/api/public/packages/:token", async (req, res) => {
     .eq("id", property.user_id)
     .maybeSingle();
 
+  // Roadmap Next: mini-site público do imóvel usa as fotos reais como hero +
+  // galeria — mesma curadoria de sempre (só url/ordem, nada interno).
+  const { data: media } = await supabase
+    .from("anuncia_property_media")
+    .select("url, ordem")
+    .eq("property_id", pkg.property_id)
+    .order("ordem", { ascending: true });
+
   const { user_id, ...propertyPublic } = property;
-  res.json({ property: propertyPublic, assets: assets || [], profile: profile || null });
+  res.json({ property: propertyPublic, assets: assets || [], profile: profile || null, media: media || [] });
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

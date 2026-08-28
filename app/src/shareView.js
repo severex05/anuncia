@@ -13,6 +13,16 @@ const ASSET_LABELS = {
 };
 const ASSET_ORDER = Object.keys(ASSET_LABELS);
 
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str || "";
+  return div.innerHTML;
+}
+
+function digitsOnly(s) {
+  return String(s || "").replace(/\D/g, "");
+}
+
 export async function renderShareScreen(token) {
   const app = document.querySelector("#app");
   app.innerHTML = `<div class="profile-screen"><p class="auth-subtitle">Carregando...</p></div>`;
@@ -32,43 +42,75 @@ export async function renderShareScreen(token) {
     return;
   }
 
-  const { property, assets, profile } = data;
+  const { property, assets, profile, media } = data;
   const assetByType = Object.fromEntries(assets.map((a) => [a.tipo, a]));
-  const facts = [property.tipo, property.bairro, property.cidade].filter(Boolean).join(" · ");
   const price = property.preco ? `R$ ${Number(property.preco).toLocaleString("pt-BR")}` : "";
+  const local = [property.bairro, property.cidade].filter(Boolean).join(", ");
+  const cover = media?.[0];
+  const gallery = (media || []).slice(1);
+
+  const specs = [];
+  if (property.dormitorios) specs.push(`${property.dormitorios} dorm`);
+  if (property.suites) specs.push(`${property.suites} suítes`);
+  if (property.banheiros) specs.push(`${property.banheiros} banheiros`);
+  if (property.vagas) specs.push(`${property.vagas} vagas`);
+  if (property.area_privativa) specs.push(`${property.area_privativa}m²`);
+
+  const whatsappDigits = digitsOnly(profile?.contatos?.whatsapp);
+  const whatsappUrl = whatsappDigits ? `https://wa.me/${whatsappDigits.startsWith("55") ? whatsappDigits : `55${whatsappDigits}`}` : "";
+
+  const otherAssets = ASSET_ORDER.filter((t) => t !== "long_description" && assetByType[t]);
 
   app.innerHTML = `
-    <header class="topbar">
-      <span class="wordmark serif">Anuncia</span>
-    </header>
-    <div class="dashboard package-editor">
-      <header class="dashboard-header">
-        <div>
-          <h1 class="auth-title">${property.titulo_interno}</h1>
-          <p class="auth-subtitle">${facts}${price ? ` · ${price}` : ""}</p>
-        </div>
-      </header>
-
-      <p class="auth-subtitle disclaimer">Este é um rascunho de trabalho compartilhado por ${profile?.nome_publico || "um corretor"}. Revise fatos, preço e disponibilidade antes de publicar.</p>
-
-      <div class="editor-pane">
-        ${ASSET_ORDER.filter((t) => assetByType[t]).map((t) => `
-          <div class="share-asset">
-            <h3>${ASSET_LABELS[t]}</h3>
-            <pre class="share-content">${assetByType[t].conteudo}</pre>
-            <button type="button" class="btn-secondary" data-copy="${t}">Copiar</button>
+    <div class="mini-site">
+      <div class="mini-hero ${cover ? "" : "mini-hero-empty"}" ${cover ? `style="background-image: url('${cover.url}')"` : ""}>
+        <span class="wordmark serif mini-hero-wordmark">Anuncia</span>
+        <div class="mini-hero-copy">
+          ${assetByType.headline ? `<p class="hero-eyebrow">${escapeHtml(assetByType.headline.conteudo)}</p>` : ""}
+          <h1>${escapeHtml(property.titulo_interno)}</h1>
+          <div class="mini-hero-facts">
+            ${price ? `<span class="mini-hero-price">${price}</span>` : ""}
+            ${local ? `<span>${escapeHtml(local)}</span>` : ""}
           </div>
-        `).join("")}
+        </div>
+      </div>
+
+      ${specs.length ? `<div class="mini-specs">${specs.map((s) => `<span>${s}</span>`).join("")}</div>` : ""}
+
+      ${gallery.length ? `
+        <div class="mini-gallery">
+          ${gallery.map((m) => `<div class="mini-gallery-item" style="background-image: url('${m.url}')"></div>`).join("")}
+        </div>
+      ` : ""}
+
+      <div class="mini-body">
+        ${assetByType.long_description ? `<p class="share-content">${escapeHtml(assetByType.long_description.conteudo)}</p>` : ""}
       </div>
 
       ${profile?.nome_publico ? `
-        <div class="checklist-panel">
+        <div class="mini-contact">
           <p class="warnings-title">Contato</p>
-          <p class="auth-subtitle">${profile.nome_publico}${profile.imobiliaria ? ` · ${profile.imobiliaria}` : ""}</p>
-          ${profile.contatos?.whatsapp ? `<p class="auth-subtitle">WhatsApp: ${profile.contatos.whatsapp}</p>` : ""}
-          ${profile.redes_sociais?.instagram ? `<p class="auth-subtitle">Instagram: ${profile.redes_sociais.instagram}</p>` : ""}
+          <p class="auth-subtitle" style="margin-bottom: 16px;">${escapeHtml(profile.nome_publico)}${profile.imobiliaria ? ` · ${escapeHtml(profile.imobiliaria)}` : ""}</p>
+          ${whatsappUrl ? `<a class="btn-cta" href="${whatsappUrl}" target="_blank" rel="noopener">Falar no WhatsApp</a>` : ""}
         </div>
       ` : ""}
+
+      ${otherAssets.length ? `
+        <details class="mini-more">
+          <summary>Ver outros textos gerados (Instagram, e-mail, roteiro de Reel...)</summary>
+          <div class="editor-pane mini-more-pane">
+            ${otherAssets.map((t) => `
+              <div class="share-asset">
+                <h3>${ASSET_LABELS[t]}</h3>
+                <pre class="share-content">${escapeHtml(assetByType[t].conteudo)}</pre>
+                <button type="button" class="btn-secondary" data-copy="${t}">Copiar</button>
+              </div>
+            `).join("")}
+          </div>
+        </details>
+      ` : ""}
+
+      <p class="legal-fineprint mini-fineprint">Compartilhado por ${escapeHtml(profile?.nome_publico || "um corretor")} via Anuncia — pode receber ajustes antes da publicação final.</p>
     </div>
   `;
 

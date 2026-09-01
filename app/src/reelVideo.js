@@ -15,18 +15,37 @@ const OUTRO_S = 2.6;
 const MIN_BEAT_S = 2.2;
 const CHARS_PER_SEC = 14; // fallback de leitura quando não há áudio
 
-// O roteiro real gerado pela IA segue o padrão "Cena 1: ...", mas é texto
-// livre — o parser precisa sobreviver a variações (sem numeração, outros
-// rótulos como "Gancho"/"CTA") sem quebrar.
-const LABEL_RE = /^(cena\s*\d+|gancho|cta|abertura|encerramento|chamada|fechamento)\s*[:\-–—]\s*/i;
+// O roteiro é texto livre — o parser precisa sobreviver a variações reais
+// observadas na prática: às vezes uma linha por cena ("Cena 1: fachada..."),
+// às vezes cabeçalho e narração em linhas separadas
+// ("[CENA 1 - Fachada do prédio]" seguido de 'LOCUÇÃO: "texto"').
+const LEGACY_LABEL_RE = /^(cena\s*\d+|gancho|cta|abertura|encerramento|chamada|fechamento)\s*[:\-–—]\s*/i;
+const NARRATION_PREFIX_RE = /^(locu[cç][aã]o|narra[cç][aã]o|texto\s+na\s+tela|[aá]udio|voz|cta|chamada)\s*:\s*/i;
+const BRACKET_HEADING_RE = /^\[.*cena\s*\d+.*\]$/i;
+
+function stripQuotes(s) {
+  return s.replace(/^["'“”‘’]+/, "").replace(/["'“”‘’]+$/, "").trim();
+}
 
 export function parseReelBeats(text) {
-  return (text || "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean)
-    .map((l) => l.replace(LABEL_RE, "").trim())
-    .filter(Boolean);
+  const lines = (text || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  const beats = [];
+  let pendingHeading = "";
+
+  for (const line of lines) {
+    if (BRACKET_HEADING_RE.test(line)) {
+      // "[CENA 1 - Fachada do prédio]" é só um rótulo de cena, não narração —
+      // guarda pra juntar com a linha de conteúdo que vem a seguir.
+      pendingHeading = line.slice(1, -1).replace(/^cena\s*\d+\s*[-–—:]?\s*/i, "").trim();
+      continue;
+    }
+    const content = stripQuotes(line.replace(NARRATION_PREFIX_RE, "").replace(LEGACY_LABEL_RE, "").trim());
+    if (!content) continue;
+    beats.push(pendingHeading ? `${pendingHeading}: ${content}` : content);
+    pendingHeading = "";
+  }
+
+  return beats;
 }
 
 function wrapText(ctx, text, maxWidth) {

@@ -5,7 +5,7 @@
 const CANVAS_W = 1080;
 const CANVAS_H = 1350;
 
-function loadImage(url) {
+export function loadImage(url) {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
@@ -15,7 +15,7 @@ function loadImage(url) {
   });
 }
 
-function drawCover(ctx, img, w, h) {
+export function drawCover(ctx, img, w, h) {
   const imgRatio = img.width / img.height;
   const targetRatio = w / h;
   let sx, sy, sw, sh;

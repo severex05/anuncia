@@ -1087,6 +1087,19 @@ button {
   margin-top: 12px;
 }
 
+.reel-video-canvas,
+.reel-video-preview {
+  display: block;
+  width: 100%;
+  max-width: 260px;
+  height: auto;
+  aspect-ratio: 1080 / 1920;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  box-shadow: 0 4px 14px rgba(12, 23, 41, 0.12);
+  background: var(--paper-deep);
+}
+
 .regen-panel {
   margin-top: 20px;
 }

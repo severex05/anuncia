@@ -33,6 +33,13 @@ if (!process.env.ASAAS_API_KEY || !process.env.ASAAS_WEBHOOK_TOKEN) {
   console.warn("[ASAAS] ASAAS_API_KEY / ASAAS_WEBHOOK_TOKEN não configuradas — checkout e webhook vão falhar até serem definidas no Railway.");
 }
 
+// OPENAI_API_KEY também não é obrigatória no boot — sem ela o vídeo do
+// roteiro de Reel (Roadmap Later) cai automaticamente pro modo silencioso
+// (legendas com tempo fixo, sem narração), o resto do app continua normal.
+if (!process.env.OPENAI_API_KEY) {
+  console.warn("[OPENAI] OPENAI_API_KEY não configurada — narração de voz do vídeo de Reel vai ficar indisponível (o vídeo ainda funciona sem áudio) até ser definida no Railway.");
+}
+
 // Auth — padrão IRYON (Supabase Auth puro, sem JWT próprio). Ver CLAUDE.md.
 async function requireAuth(req, res, next) {
   if (!supabase) return res.status(503).json({ error: "Supabase não configurado" });
@@ -1170,6 +1177,62 @@ app.post("/api/events/signup", requireAuth, async (req, res) => {
     tipo_evento: "cadastro",
   });
   res.json({ sucesso: true });
+});
+
+// ── Roadmap Later: narração de voz pro vídeo do roteiro de Reel ────────────
+// O vídeo em si é montado 100% no navegador (Canvas + MediaRecorder, ver
+// app/src/reelVideo.js) — só o áudio (texto→voz) precisa passar pelo backend,
+// mesmo padrão TTS já usado no IRYON (OpenAI tts-1, voz "onyx").
+const narrationAttempts = new Map();
+function checkNarrationLimit(userId) {
+  const now = Date.now();
+  const windowMs = 10 * 60 * 1000;
+  const attempts = (narrationAttempts.get(userId) || []).filter((t) => now - t < windowMs);
+  if (attempts.length >= 10) return false;
+  attempts.push(now);
+  narrationAttempts.set(userId, attempts);
+  return true;
+}
+
+app.post("/api/narration", requireAuth, async (req, res) => {
+  const { text } = req.body;
+  if (!text || typeof text !== "string" || !text.trim()) {
+    return res.status(400).json({ error: "Texto obrigatório" });
+  }
+  if (!process.env.OPENAI_API_KEY) return res.status(503).json({ error: "Narração não configurada" });
+  if (!checkNarrationLimit(req.userId)) return res.status(429).json({ error: "Muitas tentativas. Aguarde alguns minutos." });
+
+  try {
+    const ttsRes = await fetch("https://api.openai.com/v1/audio/speech", {
+      method: "POST",
+      signal: AbortSignal.timeout(30000),
+      headers: {
+        Authorization: `Bearer ${process.env.OPENAI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "tts-1",
+        input: text.slice(0, 1200),
+        voice: "onyx",
+        response_format: "mp3",
+      }),
+    });
+
+    if (!ttsRes.ok) {
+      const errBody = await ttsRes.text().catch(() => "");
+      console.error(`OpenAI TTS ${ttsRes.status}:`, errBody.slice(0, 300));
+      return res.status(502).json({ error: "Falha ao gerar narração" });
+    }
+
+    const audioBuffer = Buffer.from(await ttsRes.arrayBuffer());
+    res.set("Content-Type", "audio/mpeg");
+    res.set("Content-Length", audioBuffer.length);
+    res.send(audioBuffer);
+  } catch (err) {
+    console.error("Narration error:", err.message);
+    if (!res.headersSent) res.status(500).json({ error: "Falha ao gerar narração" });
+    else res.end();
+  }
 });
 
 const PORT = process.env.PORT || 3001;

@@ -133,6 +133,25 @@ export const createShareLink = (packageId) => authedFetch(`/api/packages/${packa
 
 export const revokeShareLink = (packageId) => authedFetch(`/api/packages/${packageId}/share`, { method: "DELETE" });
 
+export async function getNarrationAudio(text) {
+  const { data: { session } } = await supabase.auth.getSession();
+  const res = await fetch(`${BACKEND_URL}/api/narration`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${session?.access_token}`,
+    },
+    body: JSON.stringify({ text }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    const error = new Error(data?.error || "Falha ao gerar narração");
+    error.status = res.status;
+    throw error;
+  }
+  return res.blob();
+}
+
 export const getPublicPackage = (token) =>
   fetch(`${BACKEND_URL}/api/public/packages/${token}`).then(async (res) => {
     const data = await res.json().catch(() => null);

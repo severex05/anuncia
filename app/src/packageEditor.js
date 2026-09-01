@@ -4,6 +4,7 @@ import {
   exportPackage, createShareLink, revokeShareLink, getSubscription, getProfile,
 } from "./api.js";
 import { renderVisualPiece, downloadCanvas } from "./visualPiece.js";
+import { generateReelVideo, downloadVideoBlob } from "./reelVideo.js";
 
 const PLAN_LABELS = { trial: "Teste grátis", solo: "Solo", pro: "Pro", equipe: "Equipe" };
 
@@ -73,6 +74,9 @@ export async function renderPackageEditorScreen(property, onBack) {
     shareCopyLabel: "Copiar link",
     quota: null,
     profile: null,
+    reelVideoGenerating: false,
+    reelVideoError: "",
+    reelVideoResult: null,
   };
 
   async function loadQuota() {
@@ -265,6 +269,33 @@ export async function renderPackageEditorScreen(property, onBack) {
     render();
   }
 
+  // Não chamar render() durante a gravação: destruiria o <canvas> que o
+  // MediaRecorder está capturando no meio do processo. Progresso é
+  // atualizado direto no DOM (mesmo cuidado já usado no input de #asset-content).
+  async function doGenerateReelVideo() {
+    const asset = state.pkg.assets.find((a) => a.tipo === "reel_script");
+    state.reelVideoGenerating = true;
+    state.reelVideoError = "";
+    state.reelVideoResult = null;
+    render();
+    const canvas = document.querySelector("#reel-video-canvas");
+    const label = document.querySelector("#reel-video-progress-label");
+    try {
+      const result = await generateReelVideo(canvas, {
+        property,
+        profile: state.profile,
+        scriptText: asset?.conteudo || "",
+        onStatus: (s) => { if (label) label.textContent = s; },
+        onProgress: (p) => { if (label) label.textContent = `Gravando vídeo... ${Math.round(p * 100)}%`; },
+      });
+      state.reelVideoResult = { blob: result.blob, url: URL.createObjectURL(result.blob) };
+    } catch (err) {
+      state.reelVideoError = err.message || "Não foi possível gerar o vídeo agora.";
+    }
+    state.reelVideoGenerating = false;
+    render();
+  }
+
   function copyShareLink() {
     const url = `${window.location.origin}/share/${state.pkg.share_token}`;
     navigator.clipboard?.writeText(url).then(() => {
@@ -394,6 +425,32 @@ export async function renderPackageEditorScreen(property, onBack) {
     `;
   }
 
+  function renderReelVideoSection() {
+    if (state.activeType !== "reel_script") return "";
+    if (!property.media?.length) {
+      return `
+        <div class="visual-piece">
+          <p class="warnings-title">Vídeo a partir do roteiro</p>
+          <p class="field-hint">Adicione uma foto no imóvel (aba Básicas, editar imóvel) pra gerar o vídeo.</p>
+        </div>
+      `;
+    }
+    const showVideo = state.reelVideoResult && !state.reelVideoGenerating;
+    return `
+      <div class="visual-piece">
+        <p class="warnings-title">Vídeo a partir do roteiro</p>
+        <p class="auth-subtitle">Monta um vídeo vertical com as fotos do imóvel e este roteiro, com narração por voz quando disponível.</p>
+        ${showVideo ? `<video class="reel-video-preview" src="${state.reelVideoResult.url}" controls playsinline></video>` : `<canvas id="reel-video-canvas" class="reel-video-canvas"></canvas>`}
+        <p id="reel-video-progress-label" class="field-hint">${state.reelVideoGenerating ? "Preparando..." : ""}</p>
+        ${state.reelVideoError ? `<p class="auth-error">${escapeHtml(state.reelVideoError)}</p>` : ""}
+        <div class="visual-piece-actions">
+          <button type="button" id="reel-video-generate-btn" class="btn-secondary" ${state.reelVideoGenerating ? "disabled" : ""}>${state.reelVideoGenerating ? "Gerando..." : state.reelVideoResult ? "Gerar novamente" : "Gerar vídeo"}</button>
+          ${showVideo ? `<button type="button" id="reel-video-download-btn" class="btn-secondary">Baixar vídeo</button>` : ""}
+        </div>
+      </div>
+    `;
+  }
+
   function renderHistory() {
     if (!state.showHistory) return "";
     if (!state.history) return `<p class="auth-subtitle">Carregando histórico...</p>`;
@@ -469,6 +526,7 @@ export async function renderPackageEditorScreen(property, onBack) {
 
           ${renderPostPreview()}
           ${renderVisualPieceSection()}
+          ${renderReelVideoSection()}
 
           <div class="regen-panel">
             <p class="auth-subtitle">Regenerar com instrução rápida</p>
@@ -588,6 +646,16 @@ export async function renderPackageEditorScreen(property, onBack) {
       downloadBtn.addEventListener("click", () => {
         const filename = `anuncia-${(property.titulo_interno || "imovel").toLowerCase().replace(/[^a-z0-9]+/g, "-")}.png`;
         downloadCanvas(visualCanvas, filename);
+      });
+    }
+
+    const reelVideoBtn = document.querySelector("#reel-video-generate-btn");
+    if (reelVideoBtn) reelVideoBtn.addEventListener("click", doGenerateReelVideo);
+    const reelVideoDownloadBtn = document.querySelector("#reel-video-download-btn");
+    if (reelVideoDownloadBtn) {
+      reelVideoDownloadBtn.addEventListener("click", () => {
+        const filename = `anuncia-${(property.titulo_interno || "imovel").toLowerCase().replace(/[^a-z0-9]+/g, "-")}-video.webm`;
+        downloadVideoBlob(state.reelVideoResult.blob, filename);
       });
     }
   }

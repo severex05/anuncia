@@ -150,7 +150,23 @@ const PROPERTY_FIELDS = [
   // Uso interno do corretor — nunca sai em material gerado (ver server/ai.js
   // stripInternalFields, que remove esse campo antes de qualquer chamada de IA).
   "valor_minimo_negociacao",
+  // Roadmap Later: unidade de um empreendimento (ver ensureDevelopmentOwnership
+  // abaixo — precisa pertencer ao mesmo usuário, não é só um FK solto).
+  "development_id",
 ];
+
+// Impede vincular um imóvel a um empreendimento de outro usuário (IDOR) —
+// a checagem de FK do Postgres só garante que o id existe, não que é seu.
+async function ensureDevelopmentOwnership(developmentId, userId) {
+  if (!developmentId) return true;
+  const { data } = await supabase
+    .from("anuncia_developments")
+    .select("id")
+    .eq("id", developmentId)
+    .eq("user_id", userId)
+    .maybeSingle();
+  return !!data;
+}
 const PROPERTY_STATUS = ["rascunho", "gerado", "revisando", "aprovado", "arquivado"];
 
 // Validação de consistência (P0 do Sprint 2) — preço/área/quartos e campos
@@ -192,8 +208,9 @@ app.get("/api/properties", requireAuth, async (req, res) => {
     .eq("user_id", req.userId)
     .order("updated_at", { ascending: false });
 
-  const { q, status } = req.query;
+  const { q, status, development_id } = req.query;
   if (status) query = query.eq("status", status);
+  if (development_id) query = query.eq("development_id", development_id);
   if (q) {
     const term = `%${q}%`;
     query = query.or(`titulo_interno.ilike.${term},cidade.ilike.${term},bairro.ilike.${term}`);
@@ -261,6 +278,9 @@ app.post("/api/properties/parse-text", requireAuth, async (req, res) => {
 app.post("/api/properties", requireAuth, async (req, res) => {
   const errors = validateProperty(req.body, { partial: false });
   if (errors.length) return res.status(400).json({ error: errors.join("; ") });
+  if (req.body.development_id && !(await ensureDevelopmentOwnership(req.body.development_id, req.userId))) {
+    return res.status(400).json({ error: "Empreendimento não encontrado" });
+  }
 
   const insert = { user_id: req.userId, status: "rascunho" };
   for (const f of PROPERTY_FIELDS) if (req.body[f] !== undefined) insert[f] = req.body[f];
@@ -289,6 +309,9 @@ app.post("/api/properties", requireAuth, async (req, res) => {
 app.put("/api/properties/:id", requireAuth, async (req, res) => {
   const errors = validateProperty(req.body, { partial: true });
   if (errors.length) return res.status(400).json({ error: errors.join("; ") });
+  if (req.body.development_id && !(await ensureDevelopmentOwnership(req.body.development_id, req.userId))) {
+    return res.status(400).json({ error: "Empreendimento não encontrado" });
+  }
 
   const updates = { updated_at: new Date().toISOString() };
   for (const f of PROPERTY_FIELDS) if (req.body[f] !== undefined) updates[f] = req.body[f];
@@ -332,6 +355,99 @@ app.delete("/api/properties/:id", requireAuth, async (req, res) => {
     .eq("user_id", req.userId);
   if (error) return res.status(500).json({ error: "Erro ao excluir imóvel" });
   if (!count) return res.status(404).json({ error: "Imóvel não encontrado" });
+  res.json({ sucesso: true });
+});
+
+// ── Roadmap Later: modo empreendimento/lançamento ───────────────────────────
+// Um "empreendimento" guarda só os fatos compartilhados do prédio (nome,
+// incorporadora, diferenciais de área comum, previsão de entrega). Cada
+// unidade continua sendo um anuncia_properties normal, com development_id
+// apontando pra cá — reaproveita 100% do fluxo de imóvel já existente
+// (geração, edição, exportação, compartilhamento, duplicar) em vez de criar
+// um segundo fluxo de dados paralelo.
+const DEVELOPMENT_FIELDS = [
+  "nome", "incorporadora", "cidade", "bairro", "endereco_publico",
+  "descricao_geral", "diferenciais", "previsao_entrega",
+];
+
+app.get("/api/developments", requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from("anuncia_developments")
+    .select("*")
+    .eq("user_id", req.userId)
+    .order("updated_at", { ascending: false });
+  if (error) return res.status(500).json({ error: "Erro ao listar empreendimentos" });
+
+  const ids = data.map((d) => d.id);
+  if (ids.length) {
+    const { data: units } = await supabase
+      .from("anuncia_properties")
+      .select("id, development_id")
+      .in("development_id", ids);
+    const countByDev = {};
+    for (const u of units || []) countByDev[u.development_id] = (countByDev[u.development_id] || 0) + 1;
+    for (const d of data) d.unidades_count = countByDev[d.id] || 0;
+  }
+  res.json(data);
+});
+
+app.get("/api/developments/:id", requireAuth, async (req, res) => {
+  const { data, error } = await supabase
+    .from("anuncia_developments")
+    .select("*")
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId)
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: "Erro ao buscar empreendimento" });
+  if (!data) return res.status(404).json({ error: "Empreendimento não encontrado" });
+  res.json(data);
+});
+
+app.post("/api/developments", requireAuth, async (req, res) => {
+  if (!req.body?.nome || !String(req.body.nome).trim()) {
+    return res.status(400).json({ error: "nome é obrigatório" });
+  }
+  const insert = { user_id: req.userId };
+  for (const f of DEVELOPMENT_FIELDS) if (req.body[f] !== undefined) insert[f] = req.body[f];
+
+  const { data, error } = await supabase.from("anuncia_developments").insert(insert).select().single();
+  if (error) {
+    console.error("[developments/create]", error.message);
+    return res.status(500).json({ error: "Erro ao criar empreendimento" });
+  }
+  res.status(201).json(data);
+});
+
+app.put("/api/developments/:id", requireAuth, async (req, res) => {
+  if (req.body?.nome !== undefined && !String(req.body.nome).trim()) {
+    return res.status(400).json({ error: "nome não pode ficar vazio" });
+  }
+  const updates = { updated_at: new Date().toISOString() };
+  for (const f of DEVELOPMENT_FIELDS) if (req.body[f] !== undefined) updates[f] = req.body[f];
+
+  const { data, error } = await supabase
+    .from("anuncia_developments")
+    .update(updates)
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId)
+    .select()
+    .maybeSingle();
+  if (error) return res.status(500).json({ error: "Erro ao atualizar empreendimento" });
+  if (!data) return res.status(404).json({ error: "Empreendimento não encontrado" });
+  res.json(data);
+});
+
+app.delete("/api/developments/:id", requireAuth, async (req, res) => {
+  // ON DELETE SET NULL na coluna development_id: as unidades não são
+  // apagadas, só perdem o vínculo (mesma filosofia de nunca perder rascunho
+  // de trabalho do resto do app).
+  const { error, count } = await supabase
+    .from("anuncia_developments")
+    .delete({ count: "exact" })
+    .eq("id", req.params.id)
+    .eq("user_id", req.userId);
+  if (error) return res.status(500).json({ error: "Erro ao excluir empreendimento" });
+  if (!count) return res.status(404).json({ error: "Empreendimento não encontrado" });
   res.json({ sucesso: true });
 });
 

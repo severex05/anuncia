@@ -1,5 +1,5 @@
 import { supabase } from "./supabaseClient.js";
-import { listProperties, duplicateProperty, deleteProperty, updateProperty, getProperty } from "./api.js";
+import { listProperties, listDevelopments, duplicateProperty, deleteProperty, updateProperty, getProperty } from "./api.js";
 import { renderPropertyFormScreen } from "./propertyForm.js";
 import { renderPackageEditorScreen } from "./packageEditor.js";
 
@@ -21,6 +21,7 @@ async function renderList(filters) {
     <header class="topbar">
       <span class="wordmark serif">Anuncia</span>
       <div style="display: flex; gap: 10px;">
+        <a href="/empreendimentos">Empreendimentos</a>
         <a href="/plano">Meu plano</a>
         <button type="button" id="logout-btn">Sair</button>
       </div>
@@ -69,9 +70,13 @@ async function renderList(filters) {
 
   const listEl = document.querySelector("#properties-list");
   try {
-    const properties = await listProperties(filters);
+    const [properties, developments] = await Promise.all([
+      listProperties(filters),
+      listDevelopments().catch(() => []), // não bloqueia a lista de imóveis se falhar
+    ]);
+    const devNameById = Object.fromEntries(developments.map((d) => [d.id, d.nome]));
     listEl.innerHTML = properties.length
-      ? properties.map(renderCard).join("")
+      ? properties.map((p) => renderCard(p, devNameById)).join("")
       : `<p class="auth-subtitle">Nenhum imóvel encontrado. Clique em "+ Novo imóvel" pra começar.</p>`;
     wireCardActions(listEl, filters);
 
@@ -107,13 +112,15 @@ function renderOnboarding() {
   `;
 }
 
-function renderCard(p) {
+function renderCard(p, devNameById = {}) {
+  const devNome = p.development_id ? devNameById[p.development_id] : null;
   return `
     <div class="property-card" data-id="${p.id}">
       <div class="property-card-photo" ${p.capa_url ? `style="background: url('${p.capa_url}') center/cover no-repeat;"` : ""}>
         <span class="property-status status-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
       </div>
       <div class="property-card-main">
+        ${devNome ? `<p class="eyebrow property-dev-badge">${devNome}</p>` : ""}
         <h3>${p.titulo_interno}</h3>
         <p class="auth-subtitle">${[p.tipo, p.bairro, p.cidade].filter(Boolean).join(" · ") || "Sem detalhes ainda"}</p>
         ${p.preco ? `<p class="property-price">R$ ${Number(p.preco).toLocaleString("pt-BR")}</p>` : ""}

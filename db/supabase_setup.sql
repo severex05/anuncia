@@ -220,3 +220,37 @@ ALTER TABLE anuncia_properties ADD COLUMN IF NOT EXISTS valor_minimo_negociacao 
 -- usuário), pra não recriar customer a cada checkout. provider_id (já existia)
 -- guarda o id da assinatura Asaas.
 ALTER TABLE anuncia_subscriptions ADD COLUMN IF NOT EXISTS asaas_customer_id TEXT;
+
+-- Roadmap Later (2026-09-01): modo empreendimento/lançamento — cadastra o
+-- empreendimento uma vez (fatos do prédio: incorporadora, diferenciais de
+-- área comum, previsão de entrega) e cada unidade continua sendo um
+-- anuncia_properties normal, só com development_id apontando pra cá.
+-- Decisão deliberada: NÃO criar um fluxo de dados paralelo (geração de
+-- pacote, edição, exportação, compartilhamento, duplicar já funcionam pra
+-- qualquer anuncia_properties, unidade ou não) — só a origem dos fatos
+-- compartilhados muda.
+CREATE TABLE IF NOT EXISTS anuncia_developments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  nome TEXT NOT NULL,
+  incorporadora TEXT DEFAULT '',
+  cidade TEXT DEFAULT '',
+  bairro TEXT DEFAULT '',
+  endereco_publico TEXT DEFAULT '',
+  descricao_geral TEXT DEFAULT '',
+  diferenciais TEXT[] DEFAULT '{}',
+  previsao_entrega TEXT DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+ALTER TABLE anuncia_developments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Dono vê os próprios empreendimentos" ON anuncia_developments
+  FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Service role tem acesso total (developments)" ON anuncia_developments
+  USING (true) WITH CHECK (true);
+CREATE INDEX IF NOT EXISTS idx_anuncia_developments_user ON anuncia_developments(user_id);
+
+-- ON DELETE SET NULL: apagar o empreendimento não apaga as unidades, só
+-- desvincula (mesma filosofia de não perder rascunho de trabalho do resto do app).
+ALTER TABLE anuncia_properties ADD COLUMN IF NOT EXISTS development_id UUID REFERENCES anuncia_developments(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_anuncia_properties_development ON anuncia_properties(development_id);

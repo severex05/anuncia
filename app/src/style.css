@@ -1668,6 +1668,10 @@ section.landing-section .landing-trust {
   margin: 0 0 10px;
 }
 
+.property-dev-badge {
+  margin: 0 0 4px;
+}
+
 .landing-section h2 {
   font-family: var(--font-display);
   font-style: italic;

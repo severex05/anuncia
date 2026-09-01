@@ -3,6 +3,7 @@ import { renderAuthScreen, setAuthMode } from "./auth.js";
 import { renderProfileScreen } from "./profile.js";
 import { renderDashboardScreen } from "./dashboard.js";
 import { renderBillingScreen } from "./billing.js";
+import { renderDevelopmentsScreen } from "./developments.js";
 import { renderShareScreen } from "./shareView.js";
 import { renderLandingScreen } from "./landing.js";
 import { renderTermsScreen, renderPrivacyScreen } from "./legal.js";
@@ -75,6 +76,11 @@ async function route() {
 
   if (window.location.pathname === "/plano") {
     renderBillingScreen(goBack);
+    return;
+  }
+
+  if (window.location.pathname === "/empreendimentos") {
+    renderDevelopmentsScreen(goBack);
     return;
   }
 

@@ -1,4 +1,4 @@
-import { createProperty, updateProperty, quickFillProperty, uploadPropertyMedia, deletePropertyMedia } from "./api.js";
+import { createProperty, updateProperty, quickFillProperty, uploadPropertyMedia, deletePropertyMedia, listDevelopments } from "./api.js";
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -92,7 +92,9 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
     media: existing?.media || [],
     mediaUploading: false,
     mediaError: "",
+    developments: [],
     f: {
+      development_id: existing?.development_id || "",
       titulo_interno: existing?.titulo_interno || "",
       tipo: existing?.tipo || "",
       finalidade: existing?.finalidade || "",
@@ -124,6 +126,7 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
   function buildPayload() {
     const f = state.f;
     return {
+      development_id: f.development_id || null,
       titulo_interno: f.titulo_interno.trim(),
       tipo: f.tipo,
       finalidade: f.finalidade,
@@ -190,6 +193,15 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
               ${state.quickFill.message ? `<p class="auth-error ${state.quickFill.messageType === "error" ? "" : "auth-info"}">${state.quickFill.message}</p>` : ""}
             </div>
           ` : ""}
+          ${state.developments.length ? `
+            <label>Empreendimento (opcional) — esta unidade faz parte de um lançamento já cadastrado?
+              <select id="development-select">
+                <option value="">Nenhum — imóvel avulso</option>
+                ${state.developments.map((d) => `<option value="${d.id}" ${f.development_id === d.id ? "selected" : ""}>${d.nome}</option>`).join("")}
+              </select>
+            </label>
+            <p class="field-hint">Selecionar preenche cidade, bairro, endereço e diferenciais do prédio automaticamente — você ainda pode ajustar tudo.</p>
+          ` : `<p class="field-hint">Lançando várias unidades do mesmo prédio? <a href="/empreendimentos">Cadastre o empreendimento uma vez</a> e reaproveite os dados aqui.</p>`}
           <label>Título interno (só pra você identificar)
             <input type="text" data-f="titulo_interno" value="${f.titulo_interno}" placeholder="Apto Vila Madalena 2Q reformado" required />
           </label>
@@ -333,9 +345,11 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
         `;
       case 4: {
         const p = buildPayload();
+        const dev = state.developments.find((d) => d.id === p.development_id);
         return `
           <p class="auth-subtitle">Confira antes de salvar — dá pra editar depois.</p>
           <ul class="review-list">
+            ${dev ? `<li>Empreendimento: <strong>${dev.nome}</strong></li>` : ""}
             <li><strong>${p.titulo_interno || "(sem título)"}</strong></li>
             <li>${p.tipo || "—"} · ${p.finalidade || "—"} · ${p.operacao || "—"}</li>
             <li>R$ ${p.preco ?? "—"} ${p.condominio ? `+ cond. R$ ${p.condominio}` : ""}</li>
@@ -392,6 +406,24 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
         state.f[field] = el.type === "checkbox" ? el.checked : el.value;
       });
     });
+
+    const devSelect = document.querySelector("#development-select");
+    if (devSelect) {
+      devSelect.addEventListener("change", () => {
+        state.f.development_id = devSelect.value;
+        const dev = state.developments.find((d) => d.id === devSelect.value);
+        if (dev) {
+          // Só preenche o que ainda está vazio — nunca sobrescreve o que o
+          // corretor já digitou. Diferenciais é mesclado (não substituído).
+          if (!state.f.cidade.trim()) state.f.cidade = dev.cidade || "";
+          if (!state.f.bairro.trim()) state.f.bairro = dev.bairro || "";
+          if (!state.f.endereco_publico.trim()) state.f.endereco_publico = dev.endereco_publico || "";
+          const merged = Array.from(new Set([...toList(state.f.diferenciais), ...(dev.diferenciais || [])]));
+          state.f.diferenciais = merged.join(", ");
+        }
+        render();
+      });
+    }
 
     if (state.step === 0 && state.quickFill.open) {
       document.querySelector("#quick-fill-text").addEventListener("input", (e) => {
@@ -492,4 +524,11 @@ export function renderPropertyFormScreen(existing, onDone, onCancel) {
   }
 
   render();
+
+  listDevelopments()
+    .then((developments) => {
+      state.developments = developments;
+      if (state.step === 0) render();
+    })
+    .catch(() => {}); // opcional — formulário funciona normal sem essa lista
 }

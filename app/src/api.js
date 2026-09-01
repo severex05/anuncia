@@ -58,6 +58,18 @@ export const listProperties = (params = {}) => {
   return authedFetch(`/api/properties${qs ? `?${qs}` : ""}`);
 };
 
+export const listDevelopments = () => authedFetch("/api/developments");
+
+export const getDevelopment = (id) => authedFetch(`/api/developments/${id}`);
+
+export const createDevelopment = (fields) =>
+  authedFetch("/api/developments", { method: "POST", body: JSON.stringify(fields) });
+
+export const updateDevelopment = (id, fields) =>
+  authedFetch(`/api/developments/${id}`, { method: "PUT", body: JSON.stringify(fields) });
+
+export const deleteDevelopment = (id) => authedFetch(`/api/developments/${id}`, { method: "DELETE" });
+
 export const getProperty = (id) => authedFetch(`/api/properties/${id}`);
 
 export const quickFillProperty = (texto) =>

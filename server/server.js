@@ -139,6 +139,41 @@ app.post("/api/profile/logo", requireAuth, async (req, res) => {
   res.json({ logo_url: logoUrl });
 });
 
+// Roadmap Later: headshot do corretor — mesmo padrão do logo (base64→Storage
+// →URL pública), mas sem SVG (é foto de rosto, não marca vetorial) e num
+// campo/arquivo separado (foto_perfil_url), reaproveitando o bucket
+// anuncia-logos já existente.
+app.post("/api/profile/headshot", requireAuth, async (req, res) => {
+  const { fotoBase64, mimeType } = req.body || {};
+  const ext = mimeType === "image/png" ? "png" : mimeType === "image/jpeg" ? "jpg" : mimeType === "image/webp" ? "webp" : null;
+  if (!fotoBase64 || !ext) {
+    return res.status(400).json({ error: "Envie fotoBase64 + mimeType (png, jpeg ou webp)" });
+  }
+  const buffer = Buffer.from(fotoBase64, "base64");
+  if (buffer.length > LOGO_MAX_BYTES) {
+    return res.status(400).json({ error: "Foto maior que 2MB" });
+  }
+
+  const path = `${req.userId}/headshot.${ext}`;
+  const { error: uploadError } = await supabase.storage
+    .from("anuncia-logos")
+    .upload(path, buffer, { contentType: mimeType, upsert: true });
+  if (uploadError) {
+    console.error("[profile/headshot]", uploadError.message);
+    return res.status(500).json({ error: "Erro ao enviar foto" });
+  }
+
+  const { data: publicUrlData } = supabase.storage.from("anuncia-logos").getPublicUrl(path);
+  const fotoUrl = `${publicUrlData.publicUrl}?v=${Date.now()}`;
+
+  const { error: dbError } = await supabase
+    .from("anuncia_professional_profiles")
+    .upsert({ id: req.userId, foto_perfil_url: fotoUrl, updated_at: new Date().toISOString() }, { onConflict: "id" });
+  if (dbError) return res.status(500).json({ error: "Foto enviada, mas falhou ao salvar no perfil" });
+
+  res.json({ foto_perfil_url: fotoUrl });
+});
+
 // ── Sprint 2: imóvel ─────────────────────────────────────────────────────────
 
 const PROPERTY_FIELDS = [
@@ -987,7 +1022,7 @@ app.get("/api/public/packages/:token", async (req, res) => {
 
   const { data: profile } = await supabase
     .from("anuncia_professional_profiles")
-    .select("nome_publico, contatos, redes_sociais, logo_url, imobiliaria")
+    .select("nome_publico, contatos, redes_sociais, logo_url, imobiliaria, creci, foto_perfil_url")
     .eq("id", property.user_id)
     .maybeSingle();
 

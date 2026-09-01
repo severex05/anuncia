@@ -1324,6 +1324,21 @@ button {
   border-radius: var(--radius-md);
 }
 
+.mini-contact-broker {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.mini-contact-photo {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 2px solid var(--gold);
+  flex-shrink: 0;
+}
+
 .mini-contact .btn-cta {
   text-decoration: none;
   display: inline-block;

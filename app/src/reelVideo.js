@@ -107,22 +107,49 @@ function drawCaption(ctx, text) {
   }
 }
 
-function drawOutro(ctx, profile) {
+function drawOutro(ctx, profile, headshotImg) {
   ctx.fillStyle = "#0c1729";
   ctx.fillRect(0, 0, W, H);
   drawGoldLine(ctx);
-  const pad = 72;
+  const cx = W / 2;
+  let y = H / 2 - 260;
+
+  if (headshotImg) {
+    const size = 240;
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(cx, y, size / 2, 0, Math.PI * 2);
+    ctx.closePath();
+    ctx.clip();
+    const scale = Math.max(size / headshotImg.width, size / headshotImg.height);
+    const w = headshotImg.width * scale, h = headshotImg.height * scale;
+    ctx.drawImage(headshotImg, cx - w / 2, y - h / 2, w, h);
+    ctx.restore();
+    ctx.strokeStyle = "#c9974a";
+    ctx.lineWidth = 5;
+    ctx.beginPath();
+    ctx.arc(cx, y, size / 2, 0, Math.PI * 2);
+    ctx.stroke();
+    y += size / 2 + 70;
+  } else {
+    y += 40;
+  }
+
+  ctx.textAlign = "center";
   ctx.fillStyle = "#e8c07f";
   ctx.font = "700 34px Inter, sans-serif";
-  ctx.fillText("CONSULTE DISPONIBILIDADE", pad, H / 2 - 60);
+  ctx.fillText("CONSULTE DISPONIBILIDADE", cx, y);
+  y += 90;
   ctx.fillStyle = "#f6f1e7";
   ctx.font = 'italic 400 72px "Instrument Serif", Georgia, serif';
-  ctx.fillText(profile?.nome_publico || "Fale comigo", pad, H / 2 + 30);
+  ctx.fillText(profile?.nome_publico || "Fale comigo", cx, y);
   if (profile?.creci) {
+    y += 56;
     ctx.fillStyle = "rgba(246,241,231,0.7)";
     ctx.font = "500 32px Inter, sans-serif";
-    ctx.fillText(`CRECI ${profile.creci}`, pad, H / 2 + 90);
+    ctx.fillText(`CRECI ${profile.creci}`, cx, y);
   }
+  ctx.textAlign = "left"; // reset — as outras cenas desenham alinhadas à esquerda
 }
 
 function pickMimeType() {
@@ -164,6 +191,15 @@ export async function generateReelVideo(canvas, { property, profile, scriptText,
       coverCache.set(url, off);
     } catch {
       // foto individual pode falhar (ex: link quebrado) — segue sem ela
+    }
+  }
+
+  let headshotImg = null;
+  if (profile?.foto_perfil_url) {
+    try {
+      headshotImg = await loadImage(profile.foto_perfil_url);
+    } catch {
+      // sem foto de rosto, o card de encerramento cai pro layout só-texto
     }
   }
 
@@ -209,7 +245,7 @@ export async function generateReelVideo(canvas, { property, profile, scriptText,
     const cover = scene.photoUrl ? coverCache.get(scene.photoUrl) : null;
     const t = scene.duration > 0 ? Math.min(1, elapsedInScene / scene.duration) : 0;
     if (scene.type === "outro") {
-      drawOutro(ctx, profile);
+      drawOutro(ctx, profile, headshotImg);
       return;
     }
     if (cover) {

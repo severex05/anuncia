@@ -254,3 +254,10 @@ CREATE INDEX IF NOT EXISTS idx_anuncia_developments_user ON anuncia_developments
 -- desvincula (mesma filosofia de não perder rascunho de trabalho do resto do app).
 ALTER TABLE anuncia_properties ADD COLUMN IF NOT EXISTS development_id UUID REFERENCES anuncia_developments(id) ON DELETE SET NULL;
 CREATE INDEX IF NOT EXISTS idx_anuncia_properties_development ON anuncia_properties(development_id);
+
+-- Roadmap Later (2026-09-01): headshot do corretor — dá rosto real a quem
+-- está anunciando, usado no mini-site público (mais confiança pro
+-- visitante/lead) e no card de encerramento do vídeo do roteiro de Reel.
+-- Reaproveita o bucket anuncia-logos já existente (path
+-- "<userId>/headshot.<ext>"), não precisa de bucket novo.
+ALTER TABLE anuncia_professional_profiles ADD COLUMN IF NOT EXISTS foto_perfil_url TEXT;

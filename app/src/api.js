@@ -51,6 +51,12 @@ export const uploadLogo = (logoBase64, mimeType) =>
     body: JSON.stringify({ logoBase64, mimeType }),
   });
 
+export const uploadHeadshot = (fotoBase64, mimeType) =>
+  authedFetch("/api/profile/headshot", {
+    method: "POST",
+    body: JSON.stringify({ fotoBase64, mimeType }),
+  });
+
 export const deleteAccount = () => authedFetch("/api/account", { method: "DELETE" });
 
 export const listProperties = (params = {}) => {

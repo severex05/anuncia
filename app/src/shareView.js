@@ -90,7 +90,10 @@ export async function renderShareScreen(token) {
       ${profile?.nome_publico ? `
         <div class="mini-contact">
           <p class="warnings-title">Contato</p>
-          <p class="auth-subtitle" style="margin-bottom: 16px;">${escapeHtml(profile.nome_publico)}${profile.imobiliaria ? ` · ${escapeHtml(profile.imobiliaria)}` : ""}</p>
+          <div class="mini-contact-broker">
+            ${profile.foto_perfil_url ? `<img class="mini-contact-photo" src="${profile.foto_perfil_url}" alt="${escapeHtml(profile.nome_publico)}" />` : ""}
+            <p class="auth-subtitle" style="margin-bottom: 16px;">${escapeHtml(profile.nome_publico)}${profile.creci ? ` · CRECI ${escapeHtml(profile.creci)}` : ""}${profile.imobiliaria ? ` · ${escapeHtml(profile.imobiliaria)}` : ""}</p>
+          </div>
           ${whatsappUrl ? `<a class="btn-cta" href="${whatsappUrl}" target="_blank" rel="noopener">Falar no WhatsApp</a>` : ""}
         </div>
       ` : ""}

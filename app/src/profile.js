@@ -1,4 +1,4 @@
-import { getProfile, updateProfile, uploadLogo, deleteAccount } from "./api.js";
+import { getProfile, updateProfile, uploadLogo, uploadHeadshot, deleteAccount } from "./api.js";
 import { supabase } from "./supabaseClient.js";
 
 function fileToBase64(file) {
@@ -49,6 +49,15 @@ export async function renderProfileScreen(onSaved) {
               <input type="file" id="logo-input" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden />
             </label>
           </div>
+
+          <div class="profile-logo-row">
+            <img id="headshot-preview" class="profile-logo-preview profile-headshot-preview" src="${profile.foto_perfil_url || ""}" ${profile.foto_perfil_url ? "" : "hidden"} />
+            <label class="profile-logo-upload">
+              Escolher foto de rosto (opcional, até 2MB)
+              <input type="file" id="headshot-input" accept="image/png,image/jpeg,image/webp" hidden />
+            </label>
+          </div>
+          <p class="field-hint">Aparece no seu mini-site público e no encerramento do vídeo de Reel — dá mais confiança pra quem tá vendo o anúncio.</p>
 
           <label>Nome público
             <input type="text" id="p-nome" value="${profile.nome_publico || ""}" placeholder="Ex: Ana Beatriz Corretora" required />
@@ -139,6 +148,24 @@ export async function renderProfileScreen(onSaved) {
       preview.hidden = false;
     } catch (err) {
       showError(`Erro ao enviar logo: ${err.message}`);
+    }
+  });
+
+  document.querySelector("#headshot-input").addEventListener("change", async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showError("Foto maior que 2MB.");
+      return;
+    }
+    try {
+      const base64 = await fileToBase64(file);
+      const { foto_perfil_url } = await uploadHeadshot(base64, file.type);
+      const preview = document.querySelector("#headshot-preview");
+      preview.src = foto_perfil_url;
+      preview.hidden = false;
+    } catch (err) {
+      showError(`Erro ao enviar foto: ${err.message}`);
     }
   });
 

@@ -261,3 +261,17 @@ CREATE INDEX IF NOT EXISTS idx_anuncia_properties_development ON anuncia_propert
 -- Reaproveita o bucket anuncia-logos já existente (path
 -- "<userId>/headshot.<ext>"), não precisa de bucket novo.
 ALTER TABLE anuncia_professional_profiles ADD COLUMN IF NOT EXISTS foto_perfil_url TEXT;
+
+-- Página institucional pública do corretor (2026-09-02): "cartão de
+-- visitas" digital de uma página só, linkável no bio do Instagram — reúne
+-- perfil + portfólio (imóveis com status='aprovado', sem toggle novo por
+-- imóvel). Opt-in explícito (pagina_publica_ativa=false por padrão, a
+-- página só existe se o corretor ativar). slug é gerado automaticamente
+-- pelo backend na primeira ativação (nome_publico + sufixo curto pra
+-- unicidade, ex: "joao-silva-a3f9") e nunca é editável livremente pelo
+-- usuário, pra não criar URL quebrada/colisão. Ver GET /api/public/corretor/:slug
+-- em server/server.js — mesmo padrão de curadoria manual do
+-- GET /api/public/packages/:token (nunca a linha crua da tabela).
+ALTER TABLE anuncia_professional_profiles ADD COLUMN IF NOT EXISTS apresentacao TEXT DEFAULT '';
+ALTER TABLE anuncia_professional_profiles ADD COLUMN IF NOT EXISTS pagina_publica_ativa BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE anuncia_professional_profiles ADD COLUMN IF NOT EXISTS slug TEXT UNIQUE;

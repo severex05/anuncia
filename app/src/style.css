@@ -1403,6 +1403,64 @@ button {
   color: var(--ink-text);
 }
 
+/* ── Página pública do corretor (/c/:slug) — reaproveita .mini-* e
+   .property-card do mini-site de imóvel/dashboard, só o essencial abaixo ── */
+
+.broker-hero {
+  justify-content: flex-end;
+  gap: 20px;
+}
+
+.broker-hero-body {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.broker-hero-photo {
+  width: 84px;
+  height: 84px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--gold);
+  flex-shrink: 0;
+}
+
+.broker-portfolio {
+  padding: 32px 6vw 0;
+}
+
+.broker-portfolio-title {
+  margin-bottom: 16px;
+}
+
+.broker-portfolio-grid {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.broker-property-card:hover {
+  transform: none;
+}
+
+.property-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.property-card-link .property-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(12, 23, 41, 0.12);
+}
+
+.broker-contact-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
 /* ── Landing page ─────────────────────────────────────────────────────────── */
 
 .landing {
@@ -1550,12 +1608,28 @@ button {
   margin: 0 0 14px;
 }
 
+.landing-hero-copy .hero-eyebrow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+}
+
+.landing-hero-copy .hero-eyebrow::before {
+  content: "";
+  display: inline-block;
+  width: 28px;
+  height: 1px;
+  background: var(--gold-light);
+  opacity: 0.7;
+}
+
 .landing-hero-copy h1 {
   font-family: var(--font-display);
   font-style: italic;
   font-weight: 400;
-  font-size: clamp(2.4rem, 5vw, 3.6rem);
-  line-height: 1.15;
+  font-size: clamp(2.6rem, 5.6vw, 4rem);
+  line-height: 1.12;
   color: var(--paper);
   margin: 0 0 20px;
 }
@@ -1652,7 +1726,8 @@ section.landing-section .landing-trust {
 .landing-section,
 .diff-item,
 .price-card,
-.pain-list li {
+.pain-list li,
+.processo-item {
   animation: reveal-up 0.6s ease both;
   animation-timeline: view();
   animation-range: entry 0% entry 35%;
@@ -1662,7 +1737,8 @@ section.landing-section .landing-trust {
   .landing-section,
   .diff-item,
   .price-card,
-  .pain-list li {
+  .pain-list li,
+  .processo-item {
     animation: none;
   }
 }
@@ -1830,6 +1906,13 @@ section.landing-section .landing-trust {
   grid-template-columns: repeat(3, 1fr);
   gap: 28px;
   margin-bottom: 48px;
+}
+
+.processo-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 28px;
+  margin: 40px 0 0;
 }
 
 .diff-num {
@@ -2098,6 +2181,9 @@ section.landing-section .landing-trust {
 
 @media (max-width: 760px) {
   .diff-grid {
+    grid-template-columns: 1fr;
+  }
+  .processo-grid {
     grid-template-columns: 1fr;
   }
   .pricing-grid {

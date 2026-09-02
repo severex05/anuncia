@@ -5,6 +5,7 @@ import { renderDashboardScreen } from "./dashboard.js";
 import { renderBillingScreen } from "./billing.js";
 import { renderDevelopmentsScreen } from "./developments.js";
 import { renderShareScreen } from "./shareView.js";
+import { renderCorretorPublicoScreen } from "./corretorPublico.js";
 import { renderLandingScreen } from "./landing.js";
 import { renderTermsScreen, renderPrivacyScreen } from "./legal.js";
 import { renderExamplesScreen } from "./examples.js";
@@ -28,6 +29,16 @@ async function route() {
   const shareMatch = window.location.pathname.match(/^\/share\/([a-f0-9]+)$/);
   if (shareMatch) {
     renderShareScreen(shareMatch[1]);
+    return;
+  }
+
+  // Página pública do corretor (Roadmap Later) — mesmo padrão: sem
+  // autenticação, o slug é a própria autorização (a curadoria de "página
+  // ativa ou não" acontece no backend). Precisa vir antes de qualquer
+  // checagem de sessão Supabase, igual à rota de /share acima.
+  const corretorMatch = window.location.pathname.match(/^\/c\/([a-z0-9-]+)$/);
+  if (corretorMatch) {
+    renderCorretorPublicoScreen(corretorMatch[1]);
     return;
   }
 
@@ -81,6 +92,11 @@ async function route() {
 
   if (window.location.pathname === "/empreendimentos") {
     renderDevelopmentsScreen(goBack);
+    return;
+  }
+
+  if (window.location.pathname === "/perfil") {
+    renderProfileScreen(goBack, { mode: "edit" });
     return;
   }
 

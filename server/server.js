@@ -62,6 +62,10 @@ const PROFILE_FIELDS = [
   "nome_publico", "creci", "estado", "cidade", "imobiliaria",
   "contatos", "redes_sociais", "tom_de_voz", "exemplos_voz",
   "palavras_preferidas", "palavras_proibidas", "cores", "cpf_cnpj",
+  // Roadmap Later (2026-09-02): bio da página pública do corretor. Não
+  // inclui pagina_publica_ativa/slug aqui de propósito — essas duas têm
+  // lógica própria (geração automática de slug) em PUT /api/profile/pagina-publica.
+  "apresentacao",
 ];
 
 app.get("/api/profile", requireAuth, async (req, res) => {
@@ -172,6 +176,56 @@ app.post("/api/profile/headshot", requireAuth, async (req, res) => {
   if (dbError) return res.status(500).json({ error: "Foto enviada, mas falhou ao salvar no perfil" });
 
   res.json({ foto_perfil_url: fotoUrl });
+});
+
+// Slugifica um texto pra URL (usado tanto no nome de arquivo exportado
+// quanto no slug da página pública do corretor, com fallback próprio pra
+// cada caso).
+function slugify(text, fallback = "item") {
+  return String(text || fallback)
+    .toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/(^-+|-+$)/g, "") || fallback;
+}
+
+// Roadmap Later (2026-09-02): ativar/desativar a página pública do
+// corretor (/c/:slug). Opt-in explícito — nunca fica ativa sozinha. O
+// slug só é gerado na primeira ativação e nunca muda depois (evita link
+// quebrado se o corretor já divulgou), independente de quantas vezes a
+// página é desligada/religada. Não cabe em PUT /api/profile genérico
+// porque precisa da lógica de geração+retry de unicidade do slug.
+app.put("/api/profile/pagina-publica", requireAuth, async (req, res) => {
+  const ativa = !!req.body?.ativa;
+  const { data: profile } = await supabase
+    .from("anuncia_professional_profiles")
+    .select("nome_publico, slug")
+    .eq("id", req.userId)
+    .maybeSingle();
+  if (!profile) return res.status(400).json({ error: "Complete seu perfil antes de ativar a página pública" });
+
+  const needsSlug = ativa && !profile.slug;
+  const base = needsSlug ? slugify(profile.nome_publico, "corretor") : null;
+
+  let data, error;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const updates = { pagina_publica_ativa: ativa, updated_at: new Date().toISOString() };
+    if (needsSlug) updates.slug = `${base}-${crypto.randomBytes(2).toString("hex")}`;
+
+    ({ data, error } = await supabase
+      .from("anuncia_professional_profiles")
+      .update(updates)
+      .eq("id", req.userId)
+      .select("pagina_publica_ativa, slug")
+      .single());
+
+    if (!error || error.code !== "23505" || !needsSlug) break; // 23505 = colisão de slug, tenta outro sufixo
+  }
+  if (error) {
+    console.error("[profile/pagina-publica]", error.message);
+    return res.status(500).json({ error: "Erro ao salvar a página pública" });
+  }
+  res.json(data);
 });
 
 // ── Sprint 2: imóvel ─────────────────────────────────────────────────────────
@@ -1036,6 +1090,76 @@ app.get("/api/public/packages/:token", async (req, res) => {
 
   const { user_id, ...propertyPublic } = property;
   res.json({ property: propertyPublic, assets: assets || [], profile: profile || null, media: media || [] });
+});
+
+// ── Roadmap Later: página institucional pública do corretor (/c/:slug) ─────
+// Rota pública — SEM requireAuth de propósito, mesmo padrão do
+// GET /api/public/packages/:token acima. 404 tanto pra slug inexistente
+// quanto pra página desativada (nunca revela que a conta existe mas está
+// desligada). Objeto curado à mão: nunca a linha crua da tabela de perfil
+// (sem palavras_proibidas/cpf_cnpj/etc) nem o user_id.
+app.get("/api/public/corretor/:slug", async (req, res) => {
+  const { data: profile } = await supabase
+    .from("anuncia_professional_profiles")
+    .select("id, nome_publico, creci, estado, cidade, imobiliaria, contatos, redes_sociais, logo_url, foto_perfil_url, apresentacao, pagina_publica_ativa")
+    .eq("slug", req.params.slug)
+    .maybeSingle();
+  if (!profile || !profile.pagina_publica_ativa) return res.status(404).json({ error: "Página não encontrada" });
+
+  // Portfólio = imóveis com status='aprovado' desse corretor. Sem toggle
+  // novo por imóvel de propósito — reaproveita o status que já existe (ver
+  // CLAUDE.md desta feature), então "aprovar" um imóvel já preenchido é o
+  // único gesto que o corretor precisa fazer pra ele entrar na vitrine.
+  const { data: properties } = await supabase
+    .from("anuncia_properties")
+    .select("id, titulo_interno, tipo, operacao, cidade, bairro, preco")
+    .eq("user_id", profile.id)
+    .eq("status", "aprovado")
+    .order("updated_at", { ascending: false });
+
+  const propertyIds = (properties || []).map((p) => p.id);
+  const capaByProperty = {};
+  const shareTokenByProperty = {};
+
+  if (propertyIds.length) {
+    const { data: media } = await supabase
+      .from("anuncia_property_media")
+      .select("property_id, url, ordem")
+      .in("property_id", propertyIds)
+      .order("ordem", { ascending: true });
+    for (const m of media || []) {
+      if (!(m.property_id in capaByProperty)) capaByProperty[m.property_id] = m.url;
+    }
+
+    // Card linka pro mini-site (/share/:token) só se o imóvel já tiver um
+    // pacote com compartilhamento ativo — senão aparece sem link, só como
+    // prova de portfólio (ver CLAUDE.md desta feature). Pega o token do
+    // pacote mais recente com share_enabled=true de cada imóvel.
+    const { data: sharedPackages } = await supabase
+      .from("anuncia_launch_packages")
+      .select("property_id, share_token, created_at")
+      .in("property_id", propertyIds)
+      .eq("share_enabled", true)
+      .order("created_at", { ascending: false });
+    for (const pkg of sharedPackages || []) {
+      if (!(pkg.property_id in shareTokenByProperty)) shareTokenByProperty[pkg.property_id] = pkg.share_token;
+    }
+  }
+
+  const imoveis = (properties || []).map((p) => ({
+    id: p.id,
+    titulo: p.titulo_interno,
+    tipo: p.tipo,
+    operacao: p.operacao,
+    cidade: p.cidade,
+    bairro: p.bairro,
+    preco: p.preco,
+    capa_url: capaByProperty[p.id] || null,
+    share_token: shareTokenByProperty[p.id] || null,
+  }));
+
+  const { id, pagina_publica_ativa, ...profilePublic } = profile;
+  res.json({ profile: profilePublic, imoveis });
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

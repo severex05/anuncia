@@ -22,6 +22,7 @@ async function renderList(filters) {
       <span class="wordmark serif">Anuncia</span>
       <div style="display: flex; gap: 10px;">
         <a href="/empreendimentos">Empreendimentos</a>
+        <a href="/perfil">Meu perfil</a>
         <a href="/plano">Meu plano</a>
         <button type="button" id="logout-btn">Sair</button>
       </div>
@@ -115,7 +116,7 @@ function renderOnboarding() {
 function renderCard(p, devNameById = {}) {
   const devNome = p.development_id ? devNameById[p.development_id] : null;
   return `
-    <div class="property-card" data-id="${p.id}">
+    <div class="property-card" data-id="${p.id}" data-status="${p.status}">
       <div class="property-card-photo" ${p.capa_url ? `style="background: url('${p.capa_url}') center/cover no-repeat;"` : ""}>
         <span class="property-status status-${p.status}">${STATUS_LABEL[p.status] || p.status}</span>
       </div>
@@ -129,6 +130,9 @@ function renderCard(p, devNameById = {}) {
         <button type="button" class="btn-secondary" data-action="package">${p.status === "rascunho" ? "Gerar pacote" : "Ver pacote"}</button>
         <button type="button" class="btn-secondary" data-action="edit">Editar</button>
         <button type="button" class="btn-secondary" data-action="duplicate">Duplicar</button>
+        ${p.status !== "rascunho" && p.status !== "arquivado" ? `
+          <button type="button" class="btn-secondary" data-action="portfolio">${p.status === "aprovado" ? "Remover do portfólio" : "Aprovar p/ portfólio"}</button>
+        ` : ""}
         <button type="button" class="btn-secondary" data-action="archive">${p.status === "arquivado" ? "Desarquivar" : "Arquivar"}</button>
         <button type="button" class="btn-danger-link" data-action="delete">Excluir</button>
       </div>
@@ -160,6 +164,20 @@ function wireCardActions(listEl, filters) {
       await updateProperty(id, { status: isArchived ? "rascunho" : "arquivado" });
       renderList(filters);
     });
+
+    // Portfólio público (Roadmap Later): status='aprovado' é o próprio sinal
+    // de "aparece na página pública do corretor" — sem toggle novo por
+    // imóvel, ver server.js GET /api/public/corretor/:slug. "Remover" volta
+    // pra 'gerado' (não reaproveita 'rascunho' pra não perder o sinal de que
+    // já foi gerado um pacote).
+    const portfolioBtn = card.querySelector('[data-action="portfolio"]');
+    if (portfolioBtn) {
+      portfolioBtn.addEventListener("click", async () => {
+        const isApproved = card.dataset.status === "aprovado";
+        await updateProperty(id, { status: isApproved ? "gerado" : "aprovado" });
+        renderList(filters);
+      });
+    }
 
     card.querySelector('[data-action="delete"]').addEventListener("click", async () => {
       if (!confirm("Excluir esse imóvel? Não tem como desfazer.")) return;

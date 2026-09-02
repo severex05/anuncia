@@ -57,6 +57,9 @@ export const uploadHeadshot = (fotoBase64, mimeType) =>
     body: JSON.stringify({ fotoBase64, mimeType }),
   });
 
+export const setPublicPage = (ativa) =>
+  authedFetch("/api/profile/pagina-publica", { method: "PUT", body: JSON.stringify({ ativa }) });
+
 export const deleteAccount = () => authedFetch("/api/account", { method: "DELETE" });
 
 export const listProperties = (params = {}) => {
@@ -174,5 +177,12 @@ export const getPublicPackage = (token) =>
   fetch(`${BACKEND_URL}/api/public/packages/${token}`).then(async (res) => {
     const data = await res.json().catch(() => null);
     if (!res.ok) throw new Error(data?.error || "Link inválido");
+    return data;
+  });
+
+export const getPublicCorretor = (slug) =>
+  fetch(`${BACKEND_URL}/api/public/corretor/${slug}`).then(async (res) => {
+    const data = await res.json().catch(() => null);
+    if (!res.ok) throw new Error(data?.error || "Página não encontrada");
     return data;
   });

@@ -18,13 +18,35 @@ const CHARS_PER_SEC = 14; // fallback de leitura quando não há áudio
 // O roteiro é texto livre — o parser precisa sobreviver a variações reais
 // observadas na prática: às vezes uma linha por cena ("Cena 1: fachada..."),
 // às vezes cabeçalho e narração em linhas separadas
-// ("[CENA 1 - Fachada do prédio]" seguido de 'LOCUÇÃO: "texto"').
+// ("[CENA 1 - Fachada do prédio]" seguido de 'LOCUÇÃO: "texto"'), e às vezes
+// em TRÊS linhas — cabeçalho entre colchetes, depois um rótulo solto com
+// emoji ("📸 PISCINA DESTAQUE", sem aspas, não é narração de verdade) e só
+// então a fala entre aspas na linha seguinte. Também aparecem colchetes que
+// não são "CENA" (ex: "[WHATSAPP LINK/NÚMERO APARECE NA TELA]") e uma linha
+// de hashtags soltas no final — nenhum dos dois é narração.
 const LEGACY_LABEL_RE = /^(cena\s*\d+|gancho|cta|abertura|encerramento|chamada|fechamento)\s*[:\-–—]\s*/i;
 const NARRATION_PREFIX_RE = /^(locu[cç][aã]o|narra[cç][aã]o|texto\s+na\s+tela|[aá]udio|voz|cta|chamada)\s*:\s*/i;
-const BRACKET_HEADING_RE = /^\[.*cena\s*\d+.*\]$/i;
+const BRACKET_LINE_RE = /^\[(.*)\]$/;
+const HASHTAG_LINE_RE = /^(#\S+\s*)+$/;
+const QUOTED_RE = /["“]([^"”]+)["”]/;
 
 function stripQuotes(s) {
   return s.replace(/^["'“”‘’]+/, "").replace(/["'“”‘’]+$/, "").trim();
+}
+
+// Linha tipo "📸 PISCINA DESTAQUE" ou "🚗 GARAGEM": só emoji + rótulo em
+// maiúsculas, sem nenhuma palavra "normal" — não é fala de verdade, é
+// cenografia. Distingue de frases reais (que sempre têm minúscula em pt-BR).
+function isLabelOnlyLine(line) {
+  const letters = line.replace(/[^\p{L}\s]/gu, "").trim();
+  if (!letters) return true; // só emoji/símbolo, nenhuma letra
+  return !/\p{Ll}/u.test(letters);
+}
+
+// Remove marcação de tempo tipo "0-3s"/"17-18s" do rótulo de cena — é uma
+// nota de produção pro corretor, não deve aparecer como legenda no vídeo.
+function stripTimingToken(label) {
+  return label.replace(/\d+\s*-\s*\d+\s*s\b/gi, "").replace(/[-–—:]\s*$/, "").trim();
 }
 
 export function parseReelBeats(text) {
@@ -33,13 +55,41 @@ export function parseReelBeats(text) {
   let pendingHeading = "";
 
   for (const line of lines) {
-    if (BRACKET_HEADING_RE.test(line)) {
-      // "[CENA 1 - Fachada do prédio]" é só um rótulo de cena, não narração —
-      // guarda pra juntar com a linha de conteúdo que vem a seguir.
-      pendingHeading = line.slice(1, -1).replace(/^cena\s*\d+\s*[-–—:]?\s*/i, "").trim();
+    if (HASHTAG_LINE_RE.test(line)) continue; // hashtags soltas não são narração
+
+    const bracketMatch = line.match(BRACKET_LINE_RE);
+    if (bracketMatch) {
+      // Colchete cobrindo a linha inteira é sempre rótulo/direção de cena
+      // ("[CENA 1 - Fachada]", "[WHATSAPP LINK APARECE NA TELA]") — nunca
+      // narração. Guarda pra juntar com o conteúdo real que vem a seguir.
+      const label = stripTimingToken(bracketMatch[1].replace(/^cena\s*\d+\s*[-–—:]?\s*/i, "").trim());
+      pendingHeading = pendingHeading ? `${pendingHeading} ${label}`.trim() : label;
       continue;
     }
-    const content = stripQuotes(line.replace(NARRATION_PREFIX_RE, "").replace(LEGACY_LABEL_RE, "").trim());
+
+    const withoutPrefix = line.replace(NARRATION_PREFIX_RE, "").replace(LEGACY_LABEL_RE, "").trim();
+    if (!withoutPrefix) continue;
+
+    const quoted = withoutPrefix.match(QUOTED_RE);
+    if (quoted) {
+      // Pega só o trecho entre aspas — descarta rótulo/emoji que vier antes
+      // ("👉 \"Me manda uma mensagem!\"" → só "Me manda uma mensagem!").
+      const content = quoted[1].trim();
+      if (content) {
+        beats.push(pendingHeading ? `${pendingHeading}: ${content}` : content);
+        pendingHeading = "";
+      }
+      continue;
+    }
+
+    if (isLabelOnlyLine(withoutPrefix)) {
+      // Rótulo solto sem narração de verdade — guarda como contexto e
+      // espera a linha seguinte (não vira um "beat" sozinho).
+      pendingHeading = pendingHeading ? `${pendingHeading} ${withoutPrefix}`.trim() : withoutPrefix;
+      continue;
+    }
+
+    const content = stripQuotes(withoutPrefix);
     if (!content) continue;
     beats.push(pendingHeading ? `${pendingHeading}: ${content}` : content);
     pendingHeading = "";

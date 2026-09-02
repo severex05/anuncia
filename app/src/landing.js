@@ -40,6 +40,13 @@ const PLANOS = [
   },
 ];
 
+const PROCESSO = [
+  { titulo: "Cadastre", texto: "Os dados do imóvel, uma vez só — preço, características, diferenciais." },
+  { titulo: "Gere", texto: "O pacote completo com os 9 materiais, pronto em minutos." },
+  { titulo: "Revise", texto: "Ajuste o que quiser, com alertas de revisão antes de publicar." },
+  { titulo: "Publique", texto: "Compartilhe em cada canal, no seu ritmo — Instagram, WhatsApp, e-mail." },
+];
+
 const FAQ = [
   {
     p: "Preciso saber escrever alguma coisa especial?",
@@ -164,6 +171,16 @@ export function renderLandingScreen(onEnter) {
           </div>
         </div>
         <p class="demo-caption">Exemplo ilustrativo — o pacote real tem 9 materiais completos por lançamento. <a href="/exemplos" id="demo-see-more">Ver mais exemplos completos →</a></p>
+
+        <div class="processo-grid">
+          ${PROCESSO.map((p, i) => `
+            <div class="processo-item">
+              <p class="diff-num">${String(i + 1).padStart(2, "0")}</p>
+              <p class="diff-title">${p.titulo}</p>
+              <p class="diff-text">${p.texto}</p>
+            </div>
+          `).join("")}
+        </div>
       </section>
 
       <section class="landing-section">

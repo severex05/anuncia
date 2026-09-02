@@ -189,6 +189,18 @@ function slugify(text, fallback = "item") {
     .replace(/(^-+|-+$)/g, "") || fallback;
 }
 
+// Curadoria do campo `contatos` (JSONB {telefone, whatsapp, email}) pras
+// rotas públicas: só o WhatsApp é um canal de contato de conteúdo
+// pensado pra ser público (usado no CTA "Falar no WhatsApp"). `telefone`
+// é o celular pessoal coletado pro cadastro do Asaas (ver CLAUDE.md,
+// Sprint 6) e `email` é um contato interno — nenhum dos dois deveria
+// vazar pra quem só tem o link/slug público. Achado real de QA
+// (2026-09-02): tanto /api/public/packages/:token quanto
+// /api/public/corretor/:slug devolviam o objeto `contatos` inteiro.
+function publicContatos(contatos) {
+  return { whatsapp: contatos?.whatsapp || null };
+}
+
 // Roadmap Later (2026-09-02): ativar/desativar a página pública do
 // corretor (/c/:slug). Opt-in explícito — nunca fica ativa sozinha. O
 // slug só é gerado na primeira ativação e nunca muda depois (evita link
@@ -1089,7 +1101,8 @@ app.get("/api/public/packages/:token", async (req, res) => {
     .order("ordem", { ascending: true });
 
   const { user_id, ...propertyPublic } = property;
-  res.json({ property: propertyPublic, assets: assets || [], profile: profile || null, media: media || [] });
+  const profilePublic = profile ? { ...profile, contatos: publicContatos(profile.contatos) } : null;
+  res.json({ property: propertyPublic, assets: assets || [], profile: profilePublic, media: media || [] });
 });
 
 // ── Roadmap Later: página institucional pública do corretor (/c/:slug) ─────
@@ -1158,8 +1171,8 @@ app.get("/api/public/corretor/:slug", async (req, res) => {
     share_token: shareTokenByProperty[p.id] || null,
   }));
 
-  const { id, pagina_publica_ativa, ...profilePublic } = profile;
-  res.json({ profile: profilePublic, imoveis });
+  const { id, pagina_publica_ativa, contatos, ...profilePublic } = profile;
+  res.json({ profile: { ...profilePublic, contatos: publicContatos(contatos) }, imoveis });
 });
 
 // ── Sprint 1: exclusão de conta ─────────────────────────────────────────────

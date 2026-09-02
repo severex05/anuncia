@@ -161,6 +161,7 @@ export async function renderPackageEditorScreen(property, onBack) {
       const idx = state.pkg.assets.findIndex((a) => a.id === asset.id);
       state.pkg.assets[idx] = updated;
       state.dirty = false;
+      state.history = null;
     } catch (err) {
       state.error = err.message;
     }
@@ -180,6 +181,14 @@ export async function renderPackageEditorScreen(property, onBack) {
       state.draftContent = updated.conteudo;
       state.dirty = false;
       state.regenWarnings = updated.warnings || [];
+      state.history = null;
+      if (state.showHistory) {
+        try {
+          state.history = await getAssetVersions(asset.id);
+        } catch (err) {
+          state.error = err.message;
+        }
+      }
     } catch (err) {
       state.error = err.message;
     }
